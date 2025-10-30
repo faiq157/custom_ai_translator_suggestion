@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting AI Assistant</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header with Audio Source -->
+        <header class="header-combined">
+            <div class="header-top">
+                <div class="header-left">
+                    <h1 class="logo">
+                        <i class="fas fa-microphone-alt logo-icon"></i>
+                        Meeting AI Assistant
+                    </h1>
+                    <p class="subtitle">Real-time transcription & AI-powered suggestions</p>
+                </div>
+                <div class="header-right">
+                    <div class="status-indicator" id="statusIndicator">
+                        <span class="status-dot"></span>
+                        <span class="status-text">Ready</span>
+                    </div>
+                    <button class="btn btn-primary btn-icon-circle" id="startBtn" title="Start Recording">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="btn btn-danger btn-icon-circle" id="stopBtn" disabled title="Stop Recording">
+                        <i class="fas fa-stop"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Audio Source Selector -->
+            <div class="audio-source-section">
+                <div class="audio-source-header">
+                    <div>
+                        <h3 class="section-title">
+                            <i class="fas fa-microphone section-icon"></i>
+                            Select Audio Source
+                        </h3>
+                        <p class="section-subtitle">Choose what audio to capture</p>
+                    </div>
+                    <button class="btn-small" id="refreshDevicesBtn" title="Refresh available audio devices">
+                        <i class="fas fa-sync-alt"></i> Refresh Devices
+                    </button>
+                </div>
+                <div class="audio-source-content">
+                    <select id="audioSourceSelect" class="audio-source-select">
+                        <option value="">Loading audio sources...</option>
+                    </select>
+                    <div class="audio-source-info" id="audioSourceInfo">
+                        <i class="fas fa-info-circle info-icon"></i>
+                        <span id="audioSourceDescription">
+                            <strong>Tip:</strong> Select "System Audio" to capture ALL meeting participants (recommended for Slack/Zoom/Teams)
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item" title="Total recording time">
+                <div class="stat-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">Recording Duration</span>
+                    <span class="stat-value" id="duration">00:00</span>
+                </div>
+            </div>
+            <div class="stat-item" title="Number of transcribed segments">
+                <div class="stat-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">Transcriptions</span>
+                    <span class="stat-value" id="transcriptionCount">0</span>
+                </div>
+            </div>
+            <div class="stat-item" title="AI suggestions generated">
+                <div class="stat-icon">
+                    <i class="fas fa-lightbulb"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">AI Suggestions</span>
+                    <span class="stat-value" id="suggestionCount">0</span>
+                </div>
+            </div>
+            <div class="stat-item" title="Total API cost for this session">
+                <div class="stat-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <div class="stat-content">
+                    <span class="stat-label">Session Cost</span>
+                    <span class="stat-value" id="totalCost">$0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Transcription Panel -->
+            <div class="panel transcription-panel">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">
+                            <i class="fas fa-file-alt panel-icon"></i>
+                            Live Transcription
+                        </h2>
+                        <p class="panel-description">Real-time speech-to-text powered by Whisper AI</p>
+                    </div>
+                    <button class="btn-icon-only" id="clearTranscriptBtn" title="Clear all transcriptions">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+                <div class="panel-content" id="transcriptionContent">
+                    <div class="empty-state">
+                        <i class="fas fa-microphone empty-icon"></i>
+                        <h3 class="empty-title">No Transcriptions Yet</h3>
+                        <p class="empty-description">Click "Start Recording" to begin capturing and transcribing audio</p>
+                        <div class="empty-hint">
+                            <i class="fas fa-info-circle"></i>
+                            <span>Transcriptions appear every 3 seconds</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Suggestions Panel -->
+            <div class="panel suggestions-panel" id="suggestionsPanel">
+                <div class="panel-header">
+                    <div>
+                        <h2 class="panel-title">
+                            <i class="fas fa-lightbulb panel-icon"></i>
+                            AI Suggestions
+                        </h2>
+                        <p class="panel-description">Smart insights powered by ChatGPT</p>
+                    </div>
+                    <div class="panel-actions">
+                        <button class="btn-icon-only" id="fullscreenBtn" title="View in fullscreen">
+                            <i class="fas fa-expand"></i>
+                        </button>
+                        <button class="btn-icon-only" id="clearSuggestionsBtn" title="Clear all suggestions">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="panel-content" id="suggestionsContent">
+                    <div class="empty-state">
+                        <i class="fas fa-robot empty-icon"></i>
+                        <h3 class="empty-title">No Suggestions Yet</h3>
+                        <p class="empty-description">AI will generate helpful suggestions based on your conversation</p>
+                        <div class="suggestion-types">
+                            <div class="suggestion-type-item">
+                                <i class="fas fa-question-circle"></i>
+                                <span>Questions</span>
+                            </div>
+                            <div class="suggestion-type-item">
+                                <i class="fas fa-link"></i>
+                                <span>Resources</span>
+                            </div>
+                            <div class="suggestion-type-item">
+                                <i class="fas fa-tasks"></i>
+                                <span>Actions</span>
+                            </div>
+                            <div class="suggestion-type-item">
+                                <i class="fas fa-brain"></i>
+                                <span>Insights</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Indicator -->
+        <div class="processing-indicator" id="processingIndicator">
+            <div class="spinner"></div>
+            <span id="processingText">Processing...</span>
+        </div>
+
+        <!-- Toast Notifications -->
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <!-- Socket.io Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

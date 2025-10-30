@@ -1,0 +1,13 @@
+node_modules/
+.env
+*.wav
+*.mp3
+temp_audio/
+logs/
+.DS_Store
+*.log
+dist/
+build/
+coverage/
+.vscode/
+.idea/

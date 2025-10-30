@@ -1,0 +1,147 @@
+{
+  "id": 1761806450429,
+  "startTime": "2025-10-30T06:40:50.429Z",
+  "transcriptions": [
+    {
+      "text": "Thank you.",
+      "timestamp": "2025-10-30T06:40:54.824Z"
+    },
+    {
+      "text": "Hi, how are you all the people?",
+      "timestamp": "2025-10-30T06:40:56.296Z"
+    },
+    {
+      "text": "All dead mating attend",
+      "timestamp": "2025-10-30T06:40:59.781Z"
+    },
+    {
+      "text": "by the people.",
+      "timestamp": "2025-10-30T06:41:00.111Z"
+    },
+    {
+      "text": "So, tell me about",
+      "timestamp": "2025-10-30T06:41:02.364Z"
+    },
+    {
+      "text": "what is",
+      "timestamp": "2025-10-30T06:41:04.912Z"
+    },
+    {
+      "text": "cloud computing.",
+      "timestamp": "2025-10-30T06:41:07.356Z"
+    },
+    {
+      "text": "you",
+      "timestamp": "2025-10-30T06:41:10.022Z"
+    },
+    {
+      "text": "Thank you.",
+      "timestamp": "2025-10-30T06:41:11.990Z"
+    },
+    {
+      "text": "Thanks for watching!",
+      "timestamp": "2025-10-30T06:41:18.543Z"
+    },
+    {
+      "text": "Thank you.",
+      "timestamp": "2025-10-30T06:41:20.080Z"
+    },
+    {
+      "text": "Thank you.",
+      "timestamp": "2025-10-30T06:41:22.742Z"
+    },
+    {
+      "text": "Thank you.",
+      "timestamp": "2025-10-30T06:41:24.587Z"
+    },
+    {
+      "text": "Thank you for watching!",
+      "timestamp": "2025-10-30T06:41:27.108Z"
+    },
+    {
+      "text": "Thank you.",
+      "timestamp": "2025-10-30T06:41:28.325Z"
+    }
+  ],
+  "suggestions": [
+    {
+      "questions": [
+        "What specific topics or tasks should we focus on today?",
+        "How can we ensure effective communication and collaboration during this meeting?"
+      ],
+      "resources": [],
+      "actionItems": [],
+      "insights": [
+        "Ensuring clarity and focus on the meeting agenda is crucial for productive discussions."
+      ],
+      "metadata": {
+        "timestamp": "2025-10-30T06:41:01.444Z",
+        "duration": 1332,
+        "cost": 0.00006659999999999999,
+        "tokens": {
+          "input": 188,
+          "output": 64,
+          "total": 252
+        }
+      },
+      "timestamp": "2025-10-30T06:41:01.444Z"
+    },
+    {
+      "questions": [
+        "What are the advantages of using cloud computing for our organization?",
+        "Can you share examples of successful cloud computing implementations in similar companies?"
+      ],
+      "resources": [
+        {
+          "title": "Cloud Computing Explained",
+          "url": "https://www.ibm.com/cloud/learn/cloud-computing",
+          "description": "Introduction to cloud computing from IBM"
+        }
+      ],
+      "actionItems": [],
+      "insights": [
+        "Cloud computing offers scalability, flexibility, and cost-effectiveness for businesses."
+      ],
+      "metadata": {
+        "timestamp": "2025-10-30T06:41:13.936Z",
+        "duration": 1946,
+        "cost": 0.0000903,
+        "tokens": {
+          "input": 194,
+          "output": 102,
+          "total": 296
+        }
+      },
+      "timestamp": "2025-10-30T06:41:13.937Z"
+    },
+    {
+      "questions": [],
+      "resources": [
+        {
+          "title": "What is Cloud Computing?",
+          "url": "https://www.ibm.com/cloud/learn/what-is-cloud-computing",
+          "description": "Learn about the basics of cloud computing."
+        }
+      ],
+      "actionItems": [],
+      "insights": [],
+      "metadata": {
+        "timestamp": "2025-10-30T06:41:26.327Z",
+        "duration": 1739,
+        "cost": 0.00007005,
+        "tokens": {
+          "input": 207,
+          "output": 65,
+          "total": 272
+        }
+      },
+      "timestamp": "2025-10-30T06:41:26.327Z"
+    }
+  ],
+  "metadata": {
+    "duration": 40,
+    "totalChunks": 20,
+    "totalCost": 0.003226950000000001
+  },
+  "endTime": "2025-10-30T06:41:31.261Z"
+}

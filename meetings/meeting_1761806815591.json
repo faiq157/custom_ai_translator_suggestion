@@ -1,0 +1,107 @@
+{
+  "id": 1761806815591,
+  "startTime": "2025-10-30T06:46:55.591Z",
+  "transcriptions": [
+    {
+      "text": "Hi, this is",
+      "timestamp": "2025-10-30T06:46:59.071Z"
+    },
+    {
+      "text": "This is Faik Ahmed.",
+      "timestamp": "2025-10-30T06:47:01.177Z"
+    },
+    {
+      "text": "we are talking about.",
+      "timestamp": "2025-10-30T06:47:02.943Z"
+    },
+    {
+      "text": "the cloud computing.",
+      "timestamp": "2025-10-30T06:47:05.170Z"
+    },
+    {
+      "text": "what is",
+      "timestamp": "2025-10-30T06:47:17.867Z"
+    },
+    {
+      "text": "computing",
+      "timestamp": "2025-10-30T06:47:19.095Z"
+    },
+    {
+      "text": "So, please help me today",
+      "timestamp": "2025-10-30T06:47:35.480Z"
+    },
+    {
+      "text": "We are gonna go",
+      "timestamp": "2025-10-30T06:47:38.245Z"
+    },
+    {
+      "text": "to do that.",
+      "timestamp": "2025-10-30T06:47:39.772Z"
+    },
+    {
+      "text": "and something",
+      "timestamp": "2025-10-30T06:47:42.490Z"
+    },
+    {
+      "text": "like",
+      "timestamp": "2025-10-30T06:47:44.185Z"
+    },
+    {
+      "text": "cloud computing",
+      "timestamp": "2025-10-30T06:47:49.685Z"
+    },
+    {
+      "text": "what is cloud computing",
+      "timestamp": "2025-10-30T06:47:57.087Z"
+    },
+    {
+      "text": "Are you understand or not?",
+      "timestamp": "2025-10-30T06:48:03.845Z"
+    }
+  ],
+  "suggestions": [
+    {
+      "questions": [
+        "What are the key challenges we are currently facing?",
+        "How can we leverage technology to overcome these challenges?"
+      ],
+      "resources": [],
+      "actionItems": [],
+      "insights": [],
+      "metadata": {
+        "timestamp": "2025-10-30T06:47:03.976Z",
+        "duration": 1032,
+        "cost": 0.00005429999999999999,
+        "tokens": {
+          "input": 178,
+          "output": 46,
+          "total": 224
+        }
+      },
+      "timestamp": "2025-10-30T06:47:03.976Z"
+    },
+    {
+      "questions": [],
+      "resources": [],
+      "actionItems": [],
+      "insights": [],
+      "metadata": {
+        "timestamp": "2025-10-30T06:47:40.667Z",
+        "duration": 894,
+        "cost": 0.000043049999999999996,
+        "tokens": {
+          "input": 191,
+          "output": 24,
+          "total": 215
+        }
+      },
+      "timestamp": "2025-10-30T06:47:40.667Z"
+    }
+  ],
+  "metadata": {
+    "duration": 76,
+    "totalChunks": 38,
+    "totalCost": 0.002897350000000001
+  },
+  "endTime": "2025-10-30T06:48:12.144Z"
+}
