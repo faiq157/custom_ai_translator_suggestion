@@ -16,10 +16,7 @@ const downloadTranscriptBtn = document.getElementById('downloadTranscriptBtn');
 const downloadSuggestionsBtn = document.getElementById('downloadSuggestionsBtn');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const suggestionsPanel = document.getElementById('suggestionsPanel');
-const audioSourceSelect = document.getElementById('audioSourceSelect');
 const audioSourceInfo = document.getElementById('audioSourceInfo');
-const audioSourceDescription = document.getElementById('audioSourceDescription');
-const refreshDevicesBtn = document.getElementById('refreshDevicesBtn');
 
 // Stats elements
 const durationEl = document.getElementById('duration');
@@ -35,12 +32,15 @@ let audioDevices = null;
 let selectedAudioDevice = null;
 let currentTranscriptions = [];
 let currentSuggestions = [];
+let mediaRecorder = null;
+let audioStream = null;
+let recordingChunks = [];
+let chunkInterval = null;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     setupEventListeners();
     setupSocketListeners();
-    loadAudioDevices(); // Load available audio sources
 });
 
 // Event Listeners
@@ -52,8 +52,32 @@ function setupEventListeners() {
     downloadTranscriptBtn.addEventListener('click', downloadTranscriptPDF);
     downloadSuggestionsBtn.addEventListener('click', downloadSuggestionsPDF);
     fullscreenBtn.addEventListener('click', toggleFullscreen);
-    audioSourceSelect.addEventListener('change', handleAudioSourceChange);
-    refreshDevicesBtn.addEventListener('click', loadAudioDevices);
+    
+    // Help modal
+    const helpBtn = document.getElementById('helpBtn');
+    const helpModal = document.getElementById('helpModal');
+    const closeHelpModal = document.getElementById('closeHelpModal');
+    
+    if (helpBtn) {
+        helpBtn.addEventListener('click', () => {
+            helpModal.style.display = 'flex';
+        });
+    }
+    
+    if (closeHelpModal) {
+        closeHelpModal.addEventListener('click', () => {
+            helpModal.style.display = 'none';
+        });
+    }
+    
+    // Close modal when clicking outside
+    if (helpModal) {
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.style.display = 'none';
+            }
+        });
+    }
 }
 
 // Socket Listeners
@@ -148,28 +172,194 @@ function setupSocketListeners() {
 }
 
 // Recording Controls
-function startRecording() {
+async function startRecording() {
     if (isRecording) return;
     
-    socket.emit('start-recording');
-    startBtn.disabled = true;
-    stopBtn.disabled = false;
-    
-    // Clear previous session data
-    clearTranscription();
-    clearSuggestions();
-    clearAudioChunks();
+    try {
+        showProcessing('Setting up audio capture...');
+        
+        // Try to capture system audio first (for meeting participants)
+        let displayStream = null;
+        let hasSystemAudio = false;
+        
+        try {
+            showProcessing('Select your meeting tab to capture all participants...');
+            displayStream = await navigator.mediaDevices.getDisplayMedia({
+                video: false,
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    suppressLocalAudioPlayback: false
+                }
+            });
+            
+            hasSystemAudio = displayStream.getAudioTracks().length > 0;
+            
+            if (!hasSystemAudio) {
+                displayStream.getTracks().forEach(track => track.stop());
+                displayStream = null;
+            }
+        } catch (displayError) {
+            console.log('Screen share cancelled or failed, falling back to microphone only');
+            displayStream = null;
+            hasSystemAudio = false;
+        }
+        
+        // Step 2: Always capture microphone
+        showProcessing('Requesting microphone access...');
+        const micStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+            }
+        });
+        
+        hideProcessing();
+        
+        // Step 3: Combine streams if we have both, otherwise use mic only
+        if (hasSystemAudio && displayStream) {
+            // Mix both audio sources
+            const audioContext = new AudioContext();
+            const systemAudioSource = audioContext.createMediaStreamSource(displayStream);
+            const micAudioSource = audioContext.createMediaStreamSource(micStream);
+            const destination = audioContext.createMediaStreamDestination();
+            
+            systemAudioSource.connect(destination);
+            micAudioSource.connect(destination);
+            
+            audioStream = destination.stream;
+            
+            // Store references for cleanup
+            window.audioContext = audioContext;
+            window.displayStream = displayStream;
+            window.micStream = micStream;
+            
+            showToast('✅ Recording ALL participants + your microphone!', 'success');
+        } else {
+            // Use microphone only
+            audioStream = micStream;
+            window.micStream = micStream;
+            
+            showToast('🎤 Recording your microphone only', 'info');
+        }
+        
+        // Setup MediaRecorder with combined audio
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+        mediaRecorder = new MediaRecorder(audioStream, { mimeType });
+        recordingChunks = [];
+        
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordingChunks.push(event.data);
+            }
+        };
+        
+        mediaRecorder.onstop = () => {
+            if (recordingChunks.length > 0) {
+                sendAudioChunk();
+            }
+        };
+        
+        // Start recording
+        mediaRecorder.start();
+        
+        // Send audio chunks every 3 seconds
+        chunkInterval = setInterval(() => {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                mediaRecorder.start();
+            }
+        }, 3000);
+        
+        socket.emit('start-recording');
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        
+        // Clear previous session data
+        clearTranscription();
+        clearSuggestions();
+        clearAudioChunks();
+        
+        showToast('Recording all meeting participants + your microphone!', 'success');
+        
+    } catch (error) {
+        console.error('Error accessing audio:', error);
+        hideProcessing();
+        
+        if (error.name === 'NotAllowedError') {
+            showToast('Permission denied. Please allow screen sharing and microphone access.', 'error');
+        } else if (error.name === 'NotFoundError') {
+            showToast('No audio source found. Make sure your meeting has audio.', 'error');
+        } else {
+            showToast('Failed to capture audio: ' + error.message, 'error');
+        }
+    }
 }
 
 function stopRecording() {
     if (!isRecording) return;
     
     isRecording = false;
+    
+    // Stop MediaRecorder
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+    }
+    
+    // Clear chunk interval
+    if (chunkInterval) {
+        clearInterval(chunkInterval);
+        chunkInterval = null;
+    }
+    
+    // Stop all audio streams
+    if (window.displayStream) {
+        window.displayStream.getTracks().forEach(track => track.stop());
+        window.displayStream = null;
+    }
+    
+    if (window.micStream) {
+        window.micStream.getTracks().forEach(track => track.stop());
+        window.micStream = null;
+    }
+    
+    if (audioStream) {
+        audioStream.getTracks().forEach(track => track.stop());
+        audioStream = null;
+    }
+    
+    // Close audio context
+    if (window.audioContext) {
+        window.audioContext.close();
+        window.audioContext = null;
+    }
+    
     socket.emit('stop-recording');
     startBtn.disabled = false;
     stopBtn.disabled = true;
     stopDurationTimer();
     hideProcessing();
+}
+
+// Send audio chunk to server
+function sendAudioChunk() {
+    if (recordingChunks.length === 0) return;
+    
+    const audioBlob = new Blob(recordingChunks, { type: 'audio/webm' });
+    recordingChunks = [];
+    
+    // Convert to base64 and send via socket
+    const reader = new FileReader();
+    reader.onloadend = () => {
+        const base64Audio = reader.result.split(',')[1];
+        socket.emit('audio-data', {
+            audio: base64Audio,
+            timestamp: new Date().toISOString()
+        });
+    };
+    reader.readAsDataURL(audioBlob);
 }
 
 // UI Updates
@@ -344,44 +534,13 @@ function clearSuggestions() {
 }
 
 function clearAudioChunks() {
-    audioChunksContent.innerHTML = `
-        <div class="empty-state">
-            <i class="fas fa-headphones empty-icon"></i>
-            <p>Audio chunks will appear here with play buttons</p>
-        </div>
-    `;
+    // Audio chunks feature removed for browser-based recording
+    // No longer needed since audio is captured in browser
 }
 
 function addAudioChunk(data) {
-    // Remove empty state if present
-    const emptyState = audioChunksContent.querySelector('.empty-state');
-    if (emptyState) {
-        emptyState.remove();
-    }
-
-    const item = document.createElement('div');
-    item.className = 'audio-chunk-item';
-    item.id = `chunk-${data.chunkId}`;
-    
-    const time = new Date(data.timestamp).toLocaleTimeString();
-    const sizeKB = (data.fileSize / 1024).toFixed(2);
-    const audioUrl = `/audio/${data.chunkId}.wav`;
-    
-    item.innerHTML = `
-        <div class="chunk-header">
-            <span class="chunk-time">${time}</span>
-            <span class="chunk-size">${sizeKB} KB</span>
-        </div>
-        <div class="chunk-controls">
-            <button class="play-btn" onclick="toggleAudio('${data.chunkId}', '${audioUrl}')" id="play-${data.chunkId}">
-                <i class="fas fa-play"></i>
-            </button>
-            <audio class="audio-player" id="audio-${data.chunkId}" src="${audioUrl}" preload="metadata"></audio>
-        </div>
-    `;
-    
-    audioChunksContent.appendChild(item);
-    audioChunksContent.scrollTop = audioChunksContent.scrollHeight;
+    // Audio chunks feature removed for browser-based recording
+    // No longer needed since audio is captured in browser
 }
 
 // Audio playback control

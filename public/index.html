@@ -16,16 +16,22 @@
         <header class="header-combined">
             <div class="header-top">
                 <div class="header-left">
-                    <h1 class="logo">
-                        <i class="fas fa-microphone-alt logo-icon"></i>
-                        Meeting AI Assistant
-                    </h1>
-                    <p class="subtitle">Real-time transcription & AI-powered suggestions</p>
+                    <div>
+                        <h1 class="logo">
+                            <i class="fas fa-microphone-alt logo-icon"></i>
+                            Meeting AI Assistant
+                        </h1>
+                        <p class="subtitle">Real-time transcription & AI-powered suggestions</p>
+                    </div>
                 </div>
                 <div class="header-right">
-                    <div class="status-indicator" id="statusIndicator">
+                    <div class="status-indicator ready" id="statusIndicator">
                         <span class="status-dot"></span>
                         <span class="status-text">Ready</span>
+                    </div>
+                    <div class="header-duration">
+                        <i class="fas fa-clock"></i>
+                        <span id="duration">00:00</span>
                     </div>
                     <button class="btn btn-primary btn-icon-circle" id="startBtn" title="Start Recording">
                         <i class="fas fa-play"></i>
@@ -33,76 +39,13 @@
                     <button class="btn btn-danger btn-icon-circle" id="stopBtn" disabled title="Stop Recording">
                         <i class="fas fa-stop"></i>
                     </button>
-                </div>
-            </div>
-
-            <!-- Audio Source Selector -->
-            <div class="audio-source-section">
-                <div class="audio-source-header">
-                    <div>
-                        <h3 class="section-title">
-                            <i class="fas fa-microphone section-icon"></i>
-                            Select Audio Source
-                        </h3>
-                        <p class="section-subtitle">Choose what audio to capture</p>
-                    </div>
-                    <button class="btn-small" id="refreshDevicesBtn" title="Refresh available audio devices">
-                        <i class="fas fa-sync-alt"></i> Refresh Devices
+                    <button class="btn-icon-only" id="helpBtn" title="How to use">
+                        <i class="fas fa-question-circle"></i>
                     </button>
-                </div>
-                <div class="audio-source-content">
-                    <select id="audioSourceSelect" class="audio-source-select">
-                        <option value="">Loading audio sources...</option>
-                    </select>
-                    <div class="audio-source-info" id="audioSourceInfo">
-                        <i class="fas fa-info-circle info-icon"></i>
-                        <span id="audioSourceDescription">
-                            <strong>Tip:</strong> Select "System Audio" to capture ALL meeting participants (recommended for Slack/Zoom/Teams)
-                        </span>
-                    </div>
                 </div>
             </div>
         </header>
 
-        <!-- Stats Bar -->
-        <div class="stats-bar">
-            <div class="stat-item" title="Total recording time">
-                <div class="stat-icon">
-                    <i class="fas fa-clock"></i>
-                </div>
-                <div class="stat-content">
-                    <span class="stat-label">Recording Duration</span>
-                    <span class="stat-value" id="duration">00:00</span>
-                </div>
-            </div>
-            <div class="stat-item" title="Number of transcribed segments">
-                <div class="stat-icon">
-                    <i class="fas fa-file-alt"></i>
-                </div>
-                <div class="stat-content">
-                    <span class="stat-label">Transcriptions</span>
-                    <span class="stat-value" id="transcriptionCount">0</span>
-                </div>
-            </div>
-            <div class="stat-item" title="AI suggestions generated">
-                <div class="stat-icon">
-                    <i class="fas fa-lightbulb"></i>
-                </div>
-                <div class="stat-content">
-                    <span class="stat-label">AI Suggestions</span>
-                    <span class="stat-value" id="suggestionCount">0</span>
-                </div>
-            </div>
-            <div class="stat-item" title="Total API cost for this session">
-                <div class="stat-icon">
-                    <i class="fas fa-dollar-sign"></i>
-                </div>
-                <div class="stat-content">
-                    <span class="stat-label">Session Cost</span>
-                    <span class="stat-value" id="totalCost">$0.00</span>
-                </div>
-            </div>
-        </div>
 
         <!-- Main Content -->
         <div class="main-content">
@@ -196,6 +139,115 @@
 
         <!-- Toast Notifications -->
         <div class="toast-container" id="toastContainer"></div>
+
+        <!-- Help Modal -->
+        <div id="helpModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>📖 How to Use - Meeting AI Assistant</h2>
+                    <button class="modal-close" id="closeHelpModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="help-section">
+                        <h3>🎯 Two Recording Modes</h3>
+                        <div class="mode-card">
+                            <h4>1. Full Meeting Audio (Recommended for Chrome/Edge)</h4>
+                            <ul>
+                                <li>✅ Captures ALL meeting participants</li>
+                                <li>✅ Captures your microphone</li>
+                                <li>✅ Perfect for Zoom, Google Meet, Microsoft Teams</li>
+                            </ul>
+                        </div>
+                        <div class="mode-card">
+                            <h4>2. Microphone Only (Works Everywhere)</h4>
+                            <ul>
+                                <li>🎤 Captures only your voice</li>
+                                <li>✅ Works on all browsers (Chrome, Firefox, Edge, Safari)</li>
+                                <li>✅ Automatic fallback if tab audio fails</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>📋 Step-by-Step Instructions</h3>
+                        <ol class="help-steps">
+                            <li>
+                                <strong>Click "Start Recording"</strong>
+                                <p>The button will turn red when recording</p>
+                            </li>
+                            <li>
+                                <strong>For Full Audio: Select Meeting Tab</strong>
+                                <p>• Browser will ask to share your screen</p>
+                                <p>• Select the tab with your meeting (Zoom/Meet/Teams)</p>
+                                <p>• ⚠️ <strong>IMPORTANT:</strong> Check "Share tab audio" checkbox</p>
+                                <p>• Click "Share"</p>
+                            </li>
+                            <li>
+                                <strong>For Mic Only: Skip or Cancel</strong>
+                                <p>• Click "Cancel" on screen share dialog</p>
+                                <p>• Or it will auto-fallback if no audio detected</p>
+                            </li>
+                            <li>
+                                <strong>Allow Microphone Access</strong>
+                                <p>Browser will request microphone permission</p>
+                            </li>
+                            <li>
+                                <strong>Start Talking!</strong>
+                                <p>• Transcriptions appear in real-time</p>
+                                <p>• AI suggestions generate automatically</p>
+                            </li>
+                            <li>
+                                <strong>Click "Stop" When Done</strong>
+                                <p>• Meeting summary PDF is generated</p>
+                                <p>• Download transcripts and suggestions anytime</p>
+                            </li>
+                        </ol>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>💡 Tips & Tricks</h3>
+                        <ul class="help-tips">
+                            <li>🌐 <strong>Best Browser:</strong> Chrome or Edge for full audio capture</li>
+                            <li>🔊 <strong>Audio Quality:</strong> Make sure meeting volume is audible</li>
+                            <li>📥 <strong>Download:</strong> Use download buttons to save transcripts/suggestions as PDF</li>
+                            <li>🗑️ <strong>Clear Context:</strong> Clear AI context to start fresh suggestions</li>
+                            <li>💰 <strong>Cost Tracking:</strong> Monitor API costs in real-time at the top</li>
+                        </ul>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>🔧 Troubleshooting</h3>
+                        <div class="troubleshooting">
+                            <p><strong>❌ "No audio captured" error?</strong></p>
+                            <p>→ Make sure to check "Share tab audio" when sharing</p>
+                            
+                            <p><strong>❌ Firefox not working?</strong></p>
+                            <p>→ Use Chrome or Edge for full audio, or use mic-only mode</p>
+                            
+                            <p><strong>❌ No transcriptions appearing?</strong></p>
+                            <p>→ Check that audio is playing and microphone is working</p>
+                            
+                            <p><strong>❌ AI suggestions not showing?</strong></p>
+                            <p>→ Speak more (needs ~100 characters of text to trigger)</p>
+                        </div>
+                    </div>
+
+                    <div class="help-section">
+                        <h3>⚙️ Features</h3>
+                        <ul class="help-features">
+                            <li>🎤 Real-time audio transcription (Whisper AI)</li>
+                            <li>🤖 AI-powered suggestions (ChatGPT)</li>
+                            <li>❓ Smart questions to ask</li>
+                            <li>🔗 Relevant resource links</li>
+                            <li>✅ Action items extraction</li>
+                            <li>💭 Key insights summary</li>
+                            <li>📄 PDF export (transcripts & suggestions)</li>
+                            <li>💾 Meeting history with full data</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Socket.io Client -->

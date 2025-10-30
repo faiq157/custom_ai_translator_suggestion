@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  meeting-assistant:
+    build: .
+    container_name: meeting-assistant
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_ENABLED=${OPENAI_ENABLED:-true}
+      - WHISPER_MODEL=${WHISPER_MODEL:-whisper-1}
+      - GPT_MODEL=${GPT_MODEL:-gpt-4o-mini}
+      - AUDIO_DEVICE=${AUDIO_DEVICE:-default}
+      - CHUNK_DURATION=${CHUNK_DURATION:-2000}
+      - SAMPLE_RATE=${SAMPLE_RATE:-16000}
+    volumes:
+      - ./meetings:/app/meetings
+      - ./temp_audio:/app/temp_audio
+      - ./exports:/app/exports
+    devices:
+      - /dev/snd:/dev/snd  # Audio device access
+    privileged: true  # Required for audio access
