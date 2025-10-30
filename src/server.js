@@ -12,6 +12,7 @@ import SocketHandler from './websocket/socketHandler.js';
 import AudioDeviceService from './services/AudioDeviceService.js';
 import SystemCheckService from './services/SystemCheckService.js';
 import MeetingHistoryService from './services/MeetingHistoryService.js';
+import PDFExportService from './services/PDFExportService.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,6 +77,7 @@ app.get('/api/info', (req, res) => {
 const systemCheck = new SystemCheckService();
 const audioDeviceService = new AudioDeviceService();
 const meetingHistoryService = new MeetingHistoryService();
+const pdfExportService = new PDFExportService();
 
 app.post('/api/system/check', async (req, res) => {
   try {
@@ -183,6 +185,57 @@ app.post('/api/audio/device', async (req, res) => {
   } catch (error) {
     logger.error('Error setting audio device', { error: error.message });
     res.status(500).json({ error: error.message, success: false });
+  }
+});
+
+// PDF Export endpoints
+app.post('/api/export/transcript', async (req, res) => {
+  try {
+    const { title, date, transcriptions } = req.body;
+    
+    logger.info('Generating transcript PDF', { 
+      transcriptionCount: transcriptions?.length || 0 
+    });
+    
+    const pdfBuffer = await pdfExportService.generateTranscriptPDF({
+      title: title || 'Meeting Transcript',
+      date: date || new Date().toLocaleString(),
+      transcriptions: transcriptions || []
+    });
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=transcript_${Date.now()}.pdf`);
+    res.send(pdfBuffer);
+    
+    logger.info('Transcript PDF generated successfully');
+  } catch (error) {
+    logger.error('Error generating transcript PDF', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/export/suggestions', async (req, res) => {
+  try {
+    const { title, date, suggestions } = req.body;
+    
+    logger.info('Generating suggestions PDF', { 
+      suggestionCount: suggestions?.length || 0 
+    });
+    
+    const pdfBuffer = await pdfExportService.generateSuggestionsPDF({
+      title: title || 'AI Suggestions',
+      date: date || new Date().toLocaleString(),
+      suggestions: suggestions || []
+    });
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=suggestions_${Date.now()}.pdf`);
+    res.send(pdfBuffer);
+    
+    logger.info('Suggestions PDF generated successfully');
+  } catch (error) {
+    logger.error('Error generating suggestions PDF', { error: error.message });
+    res.status(500).json({ error: error.message });
   }
 });
 

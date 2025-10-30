@@ -116,9 +116,14 @@
                         </h2>
                         <p class="panel-description">Real-time speech-to-text powered by Whisper AI</p>
                     </div>
-                    <button class="btn-icon-only" id="clearTranscriptBtn" title="Clear all transcriptions">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
+                    <div class="panel-actions">
+                        <button class="btn-icon-only" id="downloadTranscriptBtn" title="Download transcript as PDF">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button class="btn-icon-only" id="clearTranscriptBtn" title="Clear all transcriptions">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="panel-content" id="transcriptionContent">
                     <div class="empty-state">
@@ -144,6 +149,9 @@
                         <p class="panel-description">Smart insights powered by ChatGPT</p>
                     </div>
                     <div class="panel-actions">
+                        <button class="btn-icon-only" id="downloadSuggestionsBtn" title="Download suggestions as PDF">
+                            <i class="fas fa-download"></i>
+                        </button>
                         <button class="btn-icon-only" id="fullscreenBtn" title="View in fullscreen">
                             <i class="fas fa-expand"></i>
                         </button>

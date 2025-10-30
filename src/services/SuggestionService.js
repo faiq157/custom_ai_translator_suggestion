@@ -62,7 +62,7 @@ class SuggestionService {
     }
     
     // Send if buffer is large enough (meaningful content)
-    if (bufferText.length >= 150) {
+    if (bufferText.length >= 100) {
       logger.info('Sending batch: sufficient content', { size: bufferText.length });
       return true;
     }

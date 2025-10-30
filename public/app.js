@@ -12,6 +12,8 @@ const processingIndicator = document.getElementById('processingIndicator');
 const processingText = document.getElementById('processingText');
 const clearTranscriptBtn = document.getElementById('clearTranscriptBtn');
 const clearSuggestionsBtn = document.getElementById('clearSuggestionsBtn');
+const downloadTranscriptBtn = document.getElementById('downloadTranscriptBtn');
+const downloadSuggestionsBtn = document.getElementById('downloadSuggestionsBtn');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const suggestionsPanel = document.getElementById('suggestionsPanel');
 const audioSourceSelect = document.getElementById('audioSourceSelect');
@@ -31,6 +33,8 @@ let sessionStartTime = null;
 let durationInterval = null;
 let audioDevices = null;
 let selectedAudioDevice = null;
+let currentTranscriptions = [];
+let currentSuggestions = [];
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
@@ -45,6 +49,8 @@ function setupEventListeners() {
     stopBtn.addEventListener('click', stopRecording);
     clearTranscriptBtn.addEventListener('click', clearTranscription);
     clearSuggestionsBtn.addEventListener('click', clearSuggestions);
+    downloadTranscriptBtn.addEventListener('click', downloadTranscriptPDF);
+    downloadSuggestionsBtn.addEventListener('click', downloadSuggestionsPDF);
     fullscreenBtn.addEventListener('click', toggleFullscreen);
     audioSourceSelect.addEventListener('change', handleAudioSourceChange);
     refreshDevicesBtn.addEventListener('click', loadAudioDevices);
@@ -175,6 +181,12 @@ function updateStatus(text, state) {
 function addTranscription(data) {
     hideProcessing();
     
+    // Store transcription for PDF export
+    currentTranscriptions.push({
+        text: data.text,
+        timestamp: data.timestamp
+    });
+    
     // Remove empty state if present
     const emptyState = transcriptionContent.querySelector('.empty-state');
     if (emptyState) {
@@ -197,6 +209,15 @@ function addTranscription(data) {
 
 function addSuggestions(data) {
     hideProcessing();
+    
+    // Store suggestions for PDF export
+    currentSuggestions.push({
+        questions: data.questions || [],
+        resources: data.resources || [],
+        actionItems: data.actionItems || [],
+        insights: data.insights || [],
+        timestamp: data.metadata?.timestamp || new Date().toISOString()
+    });
     
     // Remove empty state if present
     const emptyState = suggestionsContent.querySelector('.empty-state');
@@ -302,6 +323,7 @@ function hideProcessing() {
 }
 
 function clearTranscription() {
+    currentTranscriptions = [];
     transcriptionContent.innerHTML = `
         <div class="empty-state">
             <i class="fas fa-microphone empty-icon"></i>
@@ -311,6 +333,7 @@ function clearTranscription() {
 }
 
 function clearSuggestions() {
+    currentSuggestions = [];
     suggestionsContent.innerHTML = `
         <div class="empty-state">
             <i class="fas fa-robot empty-icon"></i>
@@ -704,6 +727,101 @@ function toggleFullscreen() {
         backdrop.className = 'fullscreen-backdrop';
         backdrop.addEventListener('click', toggleFullscreen);
         document.body.appendChild(backdrop);
+    }
+}
+
+// PDF Download Functions
+function downloadTranscriptPDF() {
+    if (currentTranscriptions.length === 0) {
+        showToast('No transcriptions to download', 'info');
+        return;
+    }
+
+    try {
+        showProcessing('Generating transcript PDF...');
+        
+        // Create PDF content
+        const content = {
+            title: 'Meeting Transcript',
+            date: new Date().toLocaleString(),
+            transcriptions: currentTranscriptions
+        };
+
+        // Send to server to generate PDF
+        fetch('/api/export/transcript', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(content)
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `transcript_${Date.now()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            hideProcessing();
+            showToast('Transcript PDF downloaded successfully!', 'success');
+        })
+        .catch(error => {
+            console.error('Error downloading transcript:', error);
+            hideProcessing();
+            showToast('Failed to download transcript PDF', 'error');
+        });
+    } catch (error) {
+        console.error('Error generating transcript PDF:', error);
+        hideProcessing();
+        showToast('Failed to generate transcript PDF', 'error');
+    }
+}
+
+function downloadSuggestionsPDF() {
+    if (currentSuggestions.length === 0) {
+        showToast('No suggestions to download', 'info');
+        return;
+    }
+
+    try {
+        showProcessing('Generating suggestions PDF...');
+        
+        // Create PDF content
+        const content = {
+            title: 'AI Suggestions',
+            date: new Date().toLocaleString(),
+            suggestions: currentSuggestions
+        };
+
+        // Send to server to generate PDF
+        fetch('/api/export/suggestions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(content)
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `suggestions_${Date.now()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            hideProcessing();
+            showToast('Suggestions PDF downloaded successfully!', 'success');
+        })
+        .catch(error => {
+            console.error('Error downloading suggestions:', error);
+            hideProcessing();
+            showToast('Failed to download suggestions PDF', 'error');
+        });
+    } catch (error) {
+        console.error('Error generating suggestions PDF:', error);
+        hideProcessing();
+        showToast('Failed to generate suggestions PDF', 'error');
     }
 }
 
