@@ -2,8 +2,12 @@ node_modules/
 .env
 *.wav
 *.mp3
+*.webm
 temp_audio/
 logs/
+meetings/*.json
+meetings/*.pdf
+exports/
 .DS_Store
 *.log
 dist/
@@ -11,3 +15,30 @@ build/
 coverage/
 .vscode/
 .idea/
+
+# Electron build artifacts
+out/
+*.dmg
+*.pkg
+*.deb
+*.rpm
+*.AppImage
+*.exe
+*.msi
+
+# macOS
+.DS_Store
+*.icns
+
+# Windows
+Thumbs.db
+*.ico
+
+# Temporary files
+*.tmp
+*.temp
+test-*.js
+
+# Documentation (if you want to exclude)
+*.md
+!README.md

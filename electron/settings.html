@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Meeting AI Assistant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #a0a0a0;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            color: #a0a0a0;
+            cursor: pointer;
+            font-size: 15px;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab:hover {
+            color: #fff;
+        }
+
+        .tab.active {
+            color: #4F46E5;
+            border-bottom-color: #4F46E5;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #fff;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .label-description {
+            display: block;
+            color: #a0a0a0;
+            font-size: 12px;
+            margin-top: 4px;
+            font-weight: normal;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        select {
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #fff;
+            padding: 10px;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #4F46E5;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group label {
+            margin: 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #4F46E5;
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #4338CA;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-danger {
+            background: #EF4444;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #DC2626;
+        }
+
+        .status-message {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            animation: slideDown 0.3s;
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-message.success {
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+
+        .status-message.error {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+
+        .info-box {
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #93c5fd;
+            font-size: 13px;
+        }
+
+        .info-box strong {
+            color: #60a5fa;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .grid-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1><i class="fas fa-cog"></i> Settings</h1>
+        <p class="subtitle">Configure your Meeting AI Assistant</p>
+
+        <div id="statusMessage" class="status-message"></div>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="openai">OpenAI</button>
+            <button class="tab" data-tab="audio">Audio</button>
+            <button class="tab" data-tab="server">Server</button>
+            <button class="tab" data-tab="about">About</button>
+        </div>
+
+        <!-- OpenAI Tab -->
+        <div id="openai-tab" class="tab-content active">
+            <div class="info-box">
+                <strong><i class="fas fa-key"></i> API Key Required:</strong> You need an OpenAI API key to use this application. 
+                Get one at <a href="https://platform.openai.com/api-keys" style="color: #60a5fa;">platform.openai.com</a>
+            </div>
+
+            <div class="form-group">
+                <label>
+                    OpenAI API Key
+                    <span class="label-description">Your secret API key from OpenAI</span>
+                </label>
+                <input type="password" id="apiKey" placeholder="sk-...">
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>
+                        GPT Model
+                        <span class="label-description">Model for AI suggestions</span>
+                    </label>
+                    <select id="gptModel">
+                        <option value="gpt-4">GPT-4 (Best quality)</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-4o-mini">GPT-4o Mini (Recommended)</option>
+                        <option value="gpt-3.5-turbo" selected>GPT-3.5 Turbo (Faster, Default)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Whisper Model
+                        <span class="label-description">Model for transcription</span>
+                    </label>
+                    <select id="whisperModel">
+                        <option value="whisper-1" selected>Whisper-1 (Default)</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>
+                        Temperature (0-1)
+                        <span class="label-description">Creativity level</span>
+                    </label>
+                    <input type="number" id="temperature" min="0" max="1" step="0.1" value="0.7">
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Max Tokens
+                        <span class="label-description">Response length limit</span>
+                    </label>
+                    <input type="number" id="maxTokens" min="100" max="4000" step="100" value="1000">
+                </div>
+            </div>
+        </div>
+
+        <!-- Audio Tab -->
+        <div id="audio-tab" class="tab-content">
+            <div class="info-box">
+                <strong><i class="fas fa-microphone"></i> Audio Permissions:</strong> The app needs microphone access to transcribe your meetings.
+            </div>
+
+            <div class="info-box" style="background: rgba(79, 70, 229, 0.1); border-color: rgba(79, 70, 229, 0.3);">
+                <strong><i class="fas fa-info-circle"></i> Audio Capture Modes:</strong>
+                <br>• <strong>Microphone Only:</strong> Your voice only (self-contained)
+                <br>• <strong>System Audio:</strong> Desktop apps (Slack, Teams, Zoom) + your mic
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>
+                    <strong>Audio Capture Mode</strong>
+                    <span class="label-description">Choose what to record</span>
+                </label>
+                <select id="captureMode">
+                    <option value="microphone">Microphone Only (Self-contained)</option>
+                    <option value="system">System Audio + Microphone (Desktop Apps)</option>
+                </select>
+            </div>
+
+            <div class="info-box" style="background: rgba(255, 193, 7, 0.1); border-color: rgba(255, 193, 7, 0.3); margin-top: 15px;">
+                <strong><i class="fas fa-exclamation-triangle"></i> System Audio Requirements:</strong>
+                <br><strong>Linux:</strong> PulseAudio (pre-installed) ✅
+                <br><strong>Windows:</strong> Enable "Stereo Mix" in Sound settings
+                <br><strong>macOS:</strong> Install BlackHole (free virtual audio device)
+                <br>Works with: Slack desktop, Teams desktop, Zoom desktop, etc.
+            </div>
+
+            <div class="form-group" style="margin-top: 20px;">
+                <label>
+                    Microphone Device
+                    <span class="label-description">Select your microphone (default = auto-detect)</span>
+                </label>
+                <select id="audioDevice">
+                    <option value="default">Default Device (Auto-detect)</option>
+                </select>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label>
+                        Sample Rate
+                        <span class="label-description">Audio quality (Hz)</span>
+                    </label>
+                    <select id="sampleRate">
+                        <option value="16000">16000 Hz (Recommended)</option>
+                        <option value="44100">44100 Hz (High Quality)</option>
+                        <option value="48000">48000 Hz (Studio)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Channels
+                        <span class="label-description">Audio channels</span>
+                    </label>
+                    <select id="channels">
+                        <option value="1">Mono (Recommended)</option>
+                        <option value="2">Stereo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoStart">
+                    <label for="autoStart">Auto-start recording when app opens</label>
+                </div>
+            </div>
+
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                <h3 style="color: #fff; margin-bottom: 15px; font-size: 16px;">
+                    <i class="fas fa-filter"></i> Voice Activity Detection (VAD)
+                </h3>
+                <p style="color: #a0a0a0; font-size: 13px; margin-bottom: 15px;">
+                    VAD filters out silence and background noise before calling Whisper API, saving costs and improving performance.
+                </p>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label>
+                            Energy Threshold
+                            <span class="label-description">Voice detection sensitivity (0.01-0.1)</span>
+                        </label>
+                        <input type="number" id="vadEnergyThreshold" min="0.01" max="0.1" step="0.01" value="0.02">
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            Min Speech Duration (ms)
+                            <span class="label-description">Minimum speech length to process</span>
+                        </label>
+                        <input type="number" id="vadMinDuration" min="100" max="1000" step="50" value="300">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="vadEnabled" checked>
+                        <label for="vadEnabled">Enable VAD (Recommended - saves API costs)</label>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-secondary" onclick="testMicrophone()"><i class="fas fa-microphone"></i> Test Microphone</button>
+        </div>
+
+        <!-- Server Tab -->
+        <div id="server-tab" class="tab-content">
+            <div class="info-box">
+                <strong><i class="fas fa-server"></i> Local Server:</strong> The app runs a local server on your computer. No data is sent to external servers except OpenAI API calls.
+            </div>
+
+            <div class="form-group">
+                <label>
+                    Server Port
+                    <span class="label-description">Port for local server (default: 3000)</span>
+                </label>
+                <input type="number" id="serverPort" min="1024" max="65535" value="3000">
+            </div>
+
+            <div class="form-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="autoStartServer" checked>
+                    <label for="autoStartServer">Auto-start server when app opens</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Tab -->
+        <div id="about-tab" class="tab-content">
+            <h2 style="color: #fff; margin-bottom: 15px;">Meeting AI Assistant</h2>
+            <p style="margin-bottom: 20px;">Version: <span id="appVersion">1.0.0</span></p>
+            
+            <div class="info-box">
+                <strong><i class="fas fa-info-circle"></i> About:</strong> Real-time AI-powered meeting transcription and suggestion system.
+                All processing happens locally on your computer, with only API calls to OpenAI.
+            </div>
+
+            <div style="margin-top: 20px;">
+                <h3 style="color: #fff; margin-bottom: 10px;">Features:</h3>
+                <ul style="list-style: none; padding: 0;">
+                    <li style="padding: 8px 0; color: #a0a0a0;"><i class="fas fa-check" style="color: #4ade80; margin-right: 8px;"></i> Real-time audio transcription</li>
+                    <li style="padding: 8px 0; color: #a0a0a0;"><i class="fas fa-check" style="color: #4ade80; margin-right: 8px;"></i> AI-powered suggestions</li>
+                    <li style="padding: 8px 0; color: #a0a0a0;"><i class="fas fa-check" style="color: #4ade80; margin-right: 8px;"></i> Local data storage</li>
+                    <li style="padding: 8px 0; color: #a0a0a0;"><i class="fas fa-check" style="color: #4ade80; margin-right: 8px;"></i> PDF export</li>
+                    <li style="padding: 8px 0; color: #a0a0a0;"><i class="fas fa-check" style="color: #4ade80; margin-right: 8px;"></i> Meeting history</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <p style="color: #a0a0a0; font-size: 13px;">
+                    Settings location: <span id="settingsPath" style="color: #60a5fa;"></span>
+                </p>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-danger" onclick="resetSettings()">Reset to Defaults</button>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="button-group">
+            <button class="btn-secondary" onclick="window.close()">Cancel</button>
+            <button class="btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+    </div>
+
+    <script src="settings-renderer.js"></script>
+</body>
+</html>

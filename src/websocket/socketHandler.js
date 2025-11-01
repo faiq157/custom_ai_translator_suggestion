@@ -3,12 +3,15 @@ import AudioCaptureService from '../services/AudioCaptureService.js';
 import TranscriptionService from '../services/TranscriptionService.js';
 import SuggestionService from '../services/SuggestionService.js';
 import MeetingHistoryService from '../services/MeetingHistoryService.js';
+import config from '../config/config.js';
 import path from 'path';
 import fs from 'fs';
 
 class SocketHandler {
-  constructor(io) {
+  constructor(io, settingsManager = null) {
     this.io = io;
+    this.settingsManager = settingsManager;
+    this.userSettings = null; // Will store user settings from Electron
     this.audioCapture = new AudioCaptureService();
     this.transcription = new TranscriptionService();
     this.suggestion = new SuggestionService();
@@ -20,6 +23,18 @@ class SocketHandler {
     this.setupSocketHandlers();
   }
 
+  /**
+   * Update user settings (called from Electron or via socket)
+   */
+  updateSettings(settings) {
+    this.userSettings = settings;
+    logger.info('User settings updated', {
+      captureMic: settings?.audio?.captureMicrophone,
+      captureSystem: settings?.audio?.captureSystemAudio,
+      autoDetect: settings?.audio?.autoDetectHeadphones
+    });
+  }
+
   setupSocketHandlers() {
     this.io.on('connection', (socket) => {
       logger.info('Client connected', { socketId: socket.id });
@@ -27,15 +42,21 @@ class SocketHandler {
       // Send initial stats
       socket.emit('stats', this.getStats());
 
-      // Handle start recording (browser-based)
-      socket.on('start-recording', async () => {
+      // Handle settings update from Electron
+      socket.on('update-settings', (settings) => {
+        this.updateSettings(settings);
+        socket.emit('settings-updated', { success: true });
+      });
+
+      // Handle start system recording (desktop with enhanced audio mixer)
+      socket.on('start-system-recording', async () => {
         try {
           if (this.isProcessing) {
             socket.emit('error', { message: 'Recording already in progress' });
             return;
           }
 
-          logger.info('Starting recording session (browser audio)', { socketId: socket.id });
+          logger.info('Starting recording session (enhanced audio)', { socketId: socket.id });
           this.isProcessing = true;
           this.isStopping = false;
           this.sessionStartTime = Date.now();
@@ -49,76 +70,63 @@ class SocketHandler {
           const meetingId = this.meetingHistory.startMeeting();
           socket.emit('meeting-started', { meetingId });
 
-          // Start pause detection timer
-          this.startPauseDetection(socket);
-          
-          socket.emit('recording-started', {
-            message: 'Recording started successfully',
-            timestamp: new Date().toISOString()
+          // Get user audio settings (from stored settings or defaults)
+          const audioSettings = this.userSettings?.audio || {
+            device: config.audio.device,
+            sampleRate: config.audio.sampleRate,
+            channels: config.audio.channels,
+            captureMode: 'microphone'
+          };
+
+          // Start audio capture
+          const started = this.audioCapture.startRecording(async (audioFilePath, fileSize) => {
+            if (!this.isProcessing || this.isStopping) {
+              return;
+            }
+            
+            try {
+              await this.processAudioChunk(audioFilePath, fileSize, socket);
+            } catch (error) {
+              logger.error('Error processing audio chunk', { 
+                error: error.message,
+                file: audioFilePath 
+              });
+            }
           });
 
-        } catch (error) {
-          logger.error('Error starting recording', { error: error.message });
-          this.isProcessing = false;
-          socket.emit('error', { 
-            message: 'Failed to start recording', 
-            error: error.message 
-          });
-        }
-      });
-
-      // Handle audio data from browser
-      socket.on('audio-data', async (data) => {
-        try {
-          if (!this.isProcessing || this.isStopping) {
-            return;
+          if (started) {
+            socket.emit('recording-started', {
+              message: 'Recording started',
+              timestamp: new Date().toISOString()
+            });
+          } else {
+            throw new Error('Failed to start audio capture');
           }
 
-          const { audio, timestamp } = data;
-          
-          // Convert base64 to buffer
-          const audioBuffer = Buffer.from(audio, 'base64');
-          
-          // Save to temp file
-          const tempFilePath = path.join(
-            process.cwd(), 
-            'temp_audio', 
-            `chunk_${Date.now()}.webm`
-          );
-          
-          fs.writeFileSync(tempFilePath, audioBuffer);
-          
-          logger.debug('Received audio chunk from browser', { 
-            size: `${(audioBuffer.length / 1024).toFixed(2)} KB`,
-            file: tempFilePath 
-          });
-
-          // Process the audio chunk
-          await this.processAudioChunk(tempFilePath, audioBuffer.length, socket);
-
         } catch (error) {
-          logger.error('Error processing browser audio', { error: error.message });
+          logger.error('Error starting system recording', { error: error.message });
+          this.isProcessing = false;
           socket.emit('error', { 
-            message: 'Error processing audio', 
+            message: 'Failed to start system recording', 
             error: error.message 
           });
         }
       });
 
-      // Handle stop recording
-      socket.on('stop-recording', async () => {
+      // Handle stop system recording
+      socket.on('stop-system-recording', async () => {
         try {
-          logger.info('Stopping recording session (browser audio)', { socketId: socket.id });
+          logger.info('Stopping recording session', { socketId: socket.id });
           
-          // Set stopping flag to prevent new AI requests
+          // Stop audio capture
+          this.audioCapture.stopRecording();
+          
+          // Set stopping flag
           this.isStopping = true;
           this.isProcessing = false;
           
           // Clear any buffered transcriptions
           this.suggestion.clearBuffer();
-          
-          // Stop pause detection
-          this.stopPauseDetection();
 
           const sessionDuration = this.sessionStartTime 
             ? Date.now() - this.sessionStartTime 
@@ -127,14 +135,14 @@ class SocketHandler {
           // Update meeting metadata and end meeting
           const stats = this.getStats();
           this.meetingHistory.updateMetadata({
-            totalChunks: 0, // Browser-based recording doesn't use chunk count
+            totalChunks: stats.audio.chunkCount,
             totalCost: stats.totalCost
           });
 
           const meetingData = await this.meetingHistory.endMeeting();
 
           socket.emit('recording-stopped', {
-            message: 'Recording stopped successfully',
+            message: 'System recording stopped successfully',
             timestamp: new Date().toISOString(),
             sessionDuration,
             stats: stats,
@@ -147,13 +155,14 @@ class SocketHandler {
           });
 
         } catch (error) {
-          logger.error('Error stopping recording', { error: error.message, stack: error.stack });
+          logger.error('Error stopping system recording', { error: error.message });
           socket.emit('error', { 
-            message: 'Failed to stop recording', 
+            message: 'Failed to stop system recording', 
             error: error.message 
           });
         }
       });
+
 
       // Handle get stats
       socket.on('get-stats', () => {
@@ -278,7 +287,11 @@ class SocketHandler {
   getStats() {
     const transcriptionStats = this.transcription.getStats();
     const suggestionStats = this.suggestion.getStats();
-    const audioStats = this.audioCapture.getStats();
+    const audioStats = this.audioService?.getStats() || {
+      isRecording: false,
+      chunkCount: 0,
+      chunkDuration: 0
+    };
 
     return {
       audio: audioStats,
@@ -336,7 +349,9 @@ class SocketHandler {
 
   cleanup() {
     this.stopPauseDetection();
-    this.audioCapture.cleanup();
+    if (this.audioCapture) {
+      this.audioCapture.cleanup();
+    }
     logger.info('Socket handler cleanup complete');
   }
 }

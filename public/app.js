@@ -53,6 +53,35 @@ function setupEventListeners() {
     downloadSuggestionsBtn.addEventListener('click', downloadSuggestionsPDF);
     fullscreenBtn.addEventListener('click', toggleFullscreen);
     
+    // Settings button
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            console.log('Settings button clicked');
+            console.log('window.electronAPI:', window.electronAPI);
+            console.log('window.isElectron:', window.isElectron);
+            
+            // Check if running in Electron
+            if (window.electronAPI && window.electronAPI.openSettings) {
+                console.log('Opening settings via electronAPI');
+                try {
+                    window.electronAPI.openSettings();
+                } catch (error) {
+                    console.error('Error opening settings:', error);
+                    alert('Error opening settings. Try using Cmd/Ctrl+, keyboard shortcut.');
+                }
+            } else if (window.isElectron) {
+                // For Electron without direct API
+                console.log('Electron detected but no API');
+                alert('Settings: Please press Cmd/Ctrl+, to open settings');
+            } else {
+                // For web version, show alert
+                console.log('Web version detected');
+                alert('Settings are available in the desktop version. In web mode, configure via .env file.');
+            }
+        });
+    }
+    
     // Help modal
     const helpBtn = document.getElementById('helpBtn');
     const helpModal = document.getElementById('helpModal');
@@ -176,104 +205,28 @@ async function startRecording() {
     if (isRecording) return;
     
     try {
-        showProcessing('Setting up audio capture...');
-        
-        // Try to capture system audio first (for meeting participants)
-        let displayStream = null;
-        let hasSystemAudio = false;
-        
-        try {
-            showProcessing('Select your meeting tab to capture all participants...');
-            displayStream = await navigator.mediaDevices.getDisplayMedia({
-                video: false,
-                audio: {
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                    suppressLocalAudioPlayback: false
-                }
-            });
-            
-            hasSystemAudio = displayStream.getAudioTracks().length > 0;
-            
-            if (!hasSystemAudio) {
-                displayStream.getTracks().forEach(track => track.stop());
-                displayStream = null;
-            }
-        } catch (displayError) {
-            console.log('Screen share cancelled or failed, falling back to microphone only');
-            displayStream = null;
-            hasSystemAudio = false;
+        // Desktop mode only
+        if (!window.isElectron) {
+            showToast('❌ This app only works in desktop mode. Please use the desktop application.', 'error');
+            return;
         }
         
-        // Step 2: Always capture microphone
-        showProcessing('Requesting microphone access...');
-        const micStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
+        // Use desktop mode
+        showProcessing('Starting audio capture...');
+        
+        // Get user settings from Electron and send to server
+        if (window.electronAPI && window.electronAPI.getSettings) {
+            try {
+                const settings = await window.electronAPI.getSettings();
+                socket.emit('update-settings', settings);
+            } catch (error) {
+                console.error('Failed to get settings:', error);
             }
-        });
-        
-        hideProcessing();
-        
-        // Step 3: Combine streams if we have both, otherwise use mic only
-        if (hasSystemAudio && displayStream) {
-            // Mix both audio sources
-            const audioContext = new AudioContext();
-            const systemAudioSource = audioContext.createMediaStreamSource(displayStream);
-            const micAudioSource = audioContext.createMediaStreamSource(micStream);
-            const destination = audioContext.createMediaStreamDestination();
-            
-            systemAudioSource.connect(destination);
-            micAudioSource.connect(destination);
-            
-            audioStream = destination.stream;
-            
-            // Store references for cleanup
-            window.audioContext = audioContext;
-            window.displayStream = displayStream;
-            window.micStream = micStream;
-            
-            showToast('✅ Recording ALL participants + your microphone!', 'success');
-        } else {
-            // Use microphone only
-            audioStream = micStream;
-            window.micStream = micStream;
-            
-            showToast('🎤 Recording your microphone only', 'info');
         }
         
-        // Setup MediaRecorder with combined audio
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
-        mediaRecorder = new MediaRecorder(audioStream, { mimeType });
-        recordingChunks = [];
+        socket.emit('start-system-recording');
         
-        mediaRecorder.ondataavailable = (event) => {
-            if (event.data.size > 0) {
-                recordingChunks.push(event.data);
-            }
-        };
-        
-        mediaRecorder.onstop = () => {
-            if (recordingChunks.length > 0) {
-                sendAudioChunk();
-            }
-        };
-        
-        // Start recording
-        mediaRecorder.start();
-        
-        // Send audio chunks every 3 seconds
-        chunkInterval = setInterval(() => {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-                mediaRecorder.start();
-            }
-        }, 3000);
-        
-        socket.emit('start-recording');
+        isRecording = true;
         startBtn.disabled = true;
         stopBtn.disabled = false;
         
@@ -282,19 +235,13 @@ async function startRecording() {
         clearSuggestions();
         clearAudioChunks();
         
-        showToast('Recording all meeting participants + your microphone!', 'success');
+        hideProcessing();
+        showToast('🎤 Recording started', 'success');
         
     } catch (error) {
-        console.error('Error accessing audio:', error);
+        console.error('Error starting recording:', error);
         hideProcessing();
-        
-        if (error.name === 'NotAllowedError') {
-            showToast('Permission denied. Please allow screen sharing and microphone access.', 'error');
-        } else if (error.name === 'NotFoundError') {
-            showToast('No audio source found. Make sure your meeting has audio.', 'error');
-        } else {
-            showToast('Failed to capture audio: ' + error.message, 'error');
-        }
+        showToast('❌ Failed to start recording: ' + error.message, 'error');
     }
 }
 
@@ -303,43 +250,11 @@ function stopRecording() {
     
     isRecording = false;
     
-    // Stop MediaRecorder
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
-    }
-    
-    // Clear chunk interval
-    if (chunkInterval) {
-        clearInterval(chunkInterval);
-        chunkInterval = null;
-    }
-    
-    // Stop all audio streams
-    if (window.displayStream) {
-        window.displayStream.getTracks().forEach(track => track.stop());
-        window.displayStream = null;
-    }
-    
-    if (window.micStream) {
-        window.micStream.getTracks().forEach(track => track.stop());
-        window.micStream = null;
-    }
-    
-    if (audioStream) {
-        audioStream.getTracks().forEach(track => track.stop());
-        audioStream = null;
-    }
-    
-    // Close audio context
-    if (window.audioContext) {
-        window.audioContext.close();
-        window.audioContext = null;
-    }
-    
-    socket.emit('stop-recording');
+    // Desktop mode only
+    socket.emit('stop-system-recording');
     startBtn.disabled = false;
     stopBtn.disabled = true;
-    stopDurationTimer();
+    showToast('Recording stopped', 'info');
     hideProcessing();
 }
 
