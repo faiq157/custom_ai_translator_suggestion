@@ -38,15 +38,30 @@ async function startServer() {
   }
 
   return new Promise((resolve, reject) => {
-    const serverPath = path.join(__dirname, '..', 'src', 'server.js');
+    // Get the resources path (works for both dev and production)
+    const resourcesPath = process.resourcesPath || path.join(__dirname, '..');
+    
+    // Server is always in app.asar.unpacked/src/server.js
+    const serverPath = path.join(resourcesPath, 'app.asar.unpacked', 'src', 'server.js');
+    const cwdPath = path.join(resourcesPath, 'app.asar.unpacked');
     
     console.log('Starting server from:', serverPath);
+    console.log('Working directory:', cwdPath);
+    console.log('Resources path:', resourcesPath);
+    
+    // Verify paths exist
+    if (!fs.existsSync(serverPath)) {
+      const error = `Server file not found at: ${serverPath}`;
+      console.error(error);
+      reject(new Error(error));
+      return;
+    }
     
     // Get settings to pass to server
     const settings = settingsManager.getSettings();
     
     serverProcess = spawn('node', [serverPath], {
-      cwd: path.join(__dirname, '..'),
+      cwd: cwdPath,
       env: { 
         ...process.env, 
         NODE_ENV: 'production',
@@ -59,12 +74,15 @@ async function startServer() {
         AUDIO_CHANNELS: settings.audio.channels.toString(),
         AUDIO_DEVICE: settings.audio.device
       },
-      stdio: 'pipe'
+      stdio: 'pipe',
+      shell: false
     });
 
+    let resolved = false;
     serverProcess.stdout.on('data', (data) => {
       console.log(`Server: ${data}`);
-      if (data.toString().includes('Server started')) {
+      if (!resolved && data.toString().includes('Server started')) {
+        resolved = true;
         resolve();
       }
     });
@@ -82,8 +100,13 @@ async function startServer() {
       console.log(`Server process exited with code ${code}`);
     });
 
-    // Resolve after 3 seconds if no confirmation message
-    setTimeout(() => resolve(), 3000);
+    // Resolve after 5 seconds if no confirmation message
+    setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve();
+      }
+    }, 5000);
   });
 }
 
@@ -181,12 +204,41 @@ function createWindow() {
     app.quit();
   });
 
-  // Load the app
-  mainWindow.loadURL(`http://localhost:${SERVER_PORT}`);
+  // Wait a bit more before loading to ensure server is ready
+  setTimeout(() => {
+    // Load the app
+    mainWindow.loadURL(`http://localhost:${SERVER_PORT}`).catch(err => {
+      console.error('Failed to load URL:', err);
+    });
+  }, 1000);
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
+  });
+
+  // Handle load failures with retry
+  let retryCount = 0;
+  const maxRetries = 5;
+  
+  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    if (errorCode === -102 || errorCode === -6) { // ERR_CONNECTION_REFUSED or ERR_CONNECTION_CLOSED
+      console.error('Page failed to load:', errorCode, errorDescription);
+      
+      if (retryCount < maxRetries) {
+        retryCount++;
+        const delay = 1000 * retryCount; // Increasing delay
+        console.log(`Retrying to load page... (attempt ${retryCount}/${maxRetries}) in ${delay}ms`);
+        
+        setTimeout(() => {
+          mainWindow.loadURL(`http://localhost:${SERVER_PORT}`);
+        }, delay);
+      } else {
+        console.error('Max retries reached. Server may not have started properly.');
+        dialog.showErrorBox('Connection Error', 
+          'Could not connect to the application server. Please restart the application.');
+      }
+    }
   });
 
   // Handle window close

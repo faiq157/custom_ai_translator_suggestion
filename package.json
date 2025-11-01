@@ -10,9 +10,14 @@
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "electron-builder",
-    "electron:build:win": "electron-builder --win",
+    "electron:build:win": "electron-builder --win --x64",
+    "build:win:portable": "electron-builder --win portable --x64",
     "electron:build:mac": "electron-builder --mac",
-    "electron:build:linux": "electron-builder --linux",
+    "electron:build:linux": "electron-builder --linux --x64",
+    "build:appimage": "electron-builder --linux AppImage",
+    "build:rpm": "electron-builder --linux rpm",
+    "build:fedora": "electron-builder --linux rpm --x64",
+    "build:dir": "electron-builder --linux dir",
     "electron:build:all": "electron-builder --win --mac --linux",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,7 +29,10 @@
     "real-time",
     "websocket"
   ],
-  "author": "",
+  "author": {
+    "name": "Faiq Ahmad",
+    "email": "faiqa5122@gmail.com"
+  },
   "license": "MIT",
   "dependencies": {
     "@ffmpeg-installer/ffmpeg": "^1.1.0",
@@ -63,6 +71,11 @@
       "public/**/*",
       "node_modules/**/*",
       "package.json"
+    ],
+    "asarUnpack": [
+      "node_modules/**/*",
+      "src/**/*",
+      "public/**/*"
     ],
     "extraResources": [
       {
@@ -120,27 +133,16 @@
     },
     "linux": {
       "target": [
-        {
-          "target": "AppImage",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "deb",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "rpm",
-          "arch": [
-            "x64"
-          ]
-        }
+        "AppImage",
+        "deb",
+        "rpm"
       ],
       "icon": "public/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "maintainer": "Faiq Ahmad <faiqa5122@gmail.com>",
+      "vendor": "Faiq Ahmad",
+      "synopsis": "Real-time AI-powered meeting suggestion system",
+      "description": "Meeting AI Assistant provides real-time AI-powered suggestions during meetings using Whisper and ChatGPT."
     },
     "nsis": {
       "oneClick": false,

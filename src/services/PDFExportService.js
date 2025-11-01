@@ -2,10 +2,11 @@ import PDFDocument from 'pdfkit';
 import fs from 'fs';
 import path from 'path';
 import logger from '../config/logger.js';
+import config from '../config/config.js';
 
 class PDFExportService {
   constructor() {
-    this.exportDir = path.join(process.cwd(), 'exports');
+    this.exportDir = config.paths.exports;
     this._ensureExportDir();
   }
 

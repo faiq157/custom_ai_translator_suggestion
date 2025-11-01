@@ -2,11 +2,12 @@ import fs from 'fs';
 import path from 'path';
 import PDFDocument from 'pdfkit';
 import logger from '../config/logger.js';
+import config from '../config/config.js';
 
 class MeetingHistoryService {
   constructor() {
     this.currentMeeting = null;
-    this.meetingsDir = path.join(process.cwd(), 'meetings');
+    this.meetingsDir = config.paths.meetings;
     this._ensureMeetingsDir();
   }
 

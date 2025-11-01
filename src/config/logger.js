@@ -1,9 +1,31 @@
 import winston from 'winston';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Use writable directory for logs
+const getLogDir = () => {
+  // In production (packaged app), use user data directory
+  if (process.env.NODE_ENV === 'production') {
+    const logDir = path.join(os.homedir(), '.meeting-ai-assistant', 'logs');
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true });
+    }
+    return logDir;
+  }
+  // In development, use project logs directory
+  const logDir = path.join(__dirname, '../../logs');
+  if (!fs.existsSync(logDir)) {
+    fs.mkdirSync(logDir, { recursive: true });
+  }
+  return logDir;
+};
+
+const logDir = getLogDir();
 
 // Define log format
 const logFormat = winston.format.combine(
@@ -37,13 +59,13 @@ const logger = winston.createLogger({
     }),
     // Write all logs to combined.log
     new winston.transports.File({ 
-      filename: path.join(__dirname, '../../logs/combined.log'),
+      filename: path.join(logDir, 'combined.log'),
       maxsize: 5242880, // 5MB
       maxFiles: 5
     }),
     // Write error logs to error.log
     new winston.transports.File({ 
-      filename: path.join(__dirname, '../../logs/error.log'),
+      filename: path.join(logDir, 'error.log'),
       level: 'error',
       maxsize: 5242880,
       maxFiles: 5
