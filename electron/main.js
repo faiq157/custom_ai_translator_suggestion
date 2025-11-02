@@ -167,12 +167,12 @@ function createFloatingWindow() {
     const primaryDisplay = screen.getPrimaryDisplay();
     const { width, height } = primaryDisplay.workAreaSize;
 
-    console.log('Creating floating window at position:', { x: width - 420, y: 50, width: 400, height: height - 100 });
+    console.log('Creating floating window at position:', { x: width - 520, y: 50, width: 500, height: height - 100 });
 
     floatingWindow = new BrowserWindow({
-      width: 400,
+      width: 500,
       height: height - 100,
-      x: width - 420,
+      x: width - 520,
       y: 50,
       frame: false,
       transparent: false,
@@ -513,6 +513,11 @@ function handleMeetingStart(meetingApp) {
 function handleMeetingEnd(meetingApp) {
   console.log(`Meeting ended in ${meetingApp}`);
   isInMeeting = false;
+  
+  // Notify floating window to clear suggestions
+  if (floatingWindow) {
+    floatingWindow.webContents.send('end-meeting', { app: meetingApp });
+  }
   
   // Auto-stop recording if active
   if (mainWindow) {

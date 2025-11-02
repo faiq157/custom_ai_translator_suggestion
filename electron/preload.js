@@ -34,6 +34,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onStartMeeting: (callback) => {
     ipcRenderer.on('start-meeting', (event, data) => callback(data));
   },
+  onEndMeeting: (callback) => {
+    ipcRenderer.on('end-meeting', (event, data) => callback(data));
+  },
   onDownloadSummary: (callback) => {
     ipcRenderer.on('download-summary', callback);
   },

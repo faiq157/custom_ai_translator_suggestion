@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AI Suggestions</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     * {
       margin: 0;
@@ -31,9 +32,16 @@
     }
 
     .header h2 {
-      font-size: 16px;
+      font-size: 15px;
       font-weight: 600;
       color: #00d4ff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .header h2 i {
+      font-size: 16px;
     }
 
     .close-btn {
@@ -64,11 +72,12 @@
 
     .suggestion-card {
       background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-left: 3px solid #00d4ff;
       border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
       animation: slideIn 0.3s ease-out;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     }
 
     @keyframes slideIn {
@@ -83,15 +92,59 @@
     }
 
     .suggestion-card .time {
-      font-size: 11px;
+      font-size: 10px;
       color: #888;
-      margin-bottom: 6px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    
+    .suggestion-card .time i {
+      font-size: 10px;
     }
 
     .suggestion-card .text {
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.6;
       color: #e0e0e0;
+    }
+    
+    .section-title {
+      font-weight: 600;
+      font-size: 13px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #00d4ff;
+    }
+    
+    .section-title i {
+      font-size: 14px;
+      width: 18px;
+      text-align: center;
+    }
+    
+    .suggestion-list {
+      margin-left: 26px;
+      margin-top: 6px;
+    }
+    
+    .suggestion-list li {
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+    
+    .resource-link {
+      color: #00d4ff;
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    
+    .resource-link:hover {
+      color: #00b8e6;
+      text-decoration: underline;
     }
 
     .suggestion-card.transcription {
@@ -148,7 +201,11 @@
 </head>
 <body>
   <div class="header">
-    <h2><span class="recording-indicator"></span>AI Suggestions</h2>
+    <h2>
+      <i class="fas fa-brain"></i>
+      <span>AI Suggestions</span>
+      <span class="recording-indicator"></span>
+    </h2>
     <button class="close-btn" onclick="closeWindow()">×</button>
   </div>
   
@@ -163,6 +220,13 @@
       window.close();
     }
 
+    function clearSuggestions() {
+      console.log('Clearing all suggestions from floating panel');
+      content.innerHTML = `
+        <div class="status">Waiting for meeting to start...</div>
+      `;
+    }
+
     function addSuggestion(suggestionData) {
       console.log('Adding suggestion:', suggestionData);
       
@@ -171,9 +235,12 @@
       
       const timeEl = document.createElement('div');
       timeEl.className = 'time';
-      timeEl.textContent = suggestionData.metadata?.timestamp 
-        ? new Date(suggestionData.metadata.timestamp).toLocaleTimeString() 
-        : new Date().toLocaleTimeString();
+      timeEl.innerHTML = `
+        <i class="far fa-clock"></i>
+        <span>${suggestionData.metadata?.timestamp 
+          ? new Date(suggestionData.metadata.timestamp).toLocaleTimeString() 
+          : new Date().toLocaleTimeString()}</span>
+      `;
       
       const textEl = document.createElement('div');
       textEl.className = 'text';
@@ -182,36 +249,36 @@
       
       // Questions
       if (suggestionData.questions && suggestionData.questions.length > 0) {
-        html += '<div style="margin-bottom: 10px;"><strong>❓ Questions:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        html += '<div style="margin-bottom: 14px;"><div class="section-title"><i class="fas fa-question-circle"></i><span>Questions</span></div><ul class="suggestion-list">';
         suggestionData.questions.forEach(q => {
-          html += `<li style="margin-bottom: 3px;">${q}</li>`;
+          html += `<li>${q}</li>`;
         });
         html += '</ul></div>';
       }
       
       // Resources
       if (suggestionData.resources && suggestionData.resources.length > 0) {
-        html += '<div style="margin-bottom: 10px;"><strong>📚 Resources:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        html += '<div style="margin-bottom: 14px;"><div class="section-title"><i class="fas fa-book"></i><span>Resources</span></div><ul class="suggestion-list">';
         suggestionData.resources.forEach(r => {
-          html += `<li style="margin-bottom: 3px;"><a href="${r.url}" target="_blank" style="color: #00d4ff;">${r.title}</a> - ${r.description}</li>`;
+          html += `<li><a href="${r.url}" target="_blank" class="resource-link">${r.title}</a><br><span style="color: #888; font-size: 12px;">${r.description}</span></li>`;
         });
         html += '</ul></div>';
       }
       
       // Action Items
       if (suggestionData.actionItems && suggestionData.actionItems.length > 0) {
-        html += '<div style="margin-bottom: 10px;"><strong>✅ Action Items:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        html += '<div style="margin-bottom: 14px;"><div class="section-title"><i class="fas fa-check-circle"></i><span>Action Items</span></div><ul class="suggestion-list">';
         suggestionData.actionItems.forEach(a => {
-          html += `<li style="margin-bottom: 3px;">${a}</li>`;
+          html += `<li>${a}</li>`;
         });
         html += '</ul></div>';
       }
       
       // Insights
       if (suggestionData.insights && suggestionData.insights.length > 0) {
-        html += '<div><strong>💡 Insights:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        html += '<div><div class="section-title"><i class="fas fa-lightbulb"></i><span>Insights</span></div><ul class="suggestion-list">';
         suggestionData.insights.forEach(i => {
-          html += `<li style="margin-bottom: 3px;">${i}</li>`;
+          html += `<li>${i}</li>`;
         });
         html += '</ul></div>';
       }
@@ -249,6 +316,11 @@
         if (status) {
           status.textContent = `Recording ${data.app} meeting...`;
         }
+      });
+      
+      window.electronAPI.onEndMeeting((data) => {
+        console.log('Meeting ended:', data);
+        clearSuggestions();
       });
     } else {
       console.warn('electronAPI not available!');
