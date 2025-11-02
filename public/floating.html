@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Suggestions</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+      -webkit-app-region: drag;
+    }
+
+    .header {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 12px 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      -webkit-app-region: drag;
+    }
+
+    .header h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #00d4ff;
+    }
+
+    .close-btn {
+      background: rgba(255, 59, 48, 0.8);
+      border: none;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      -webkit-app-region: no-drag;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 59, 48, 1);
+    }
+
+    .content {
+      padding: 15px;
+      height: calc(100vh - 50px);
+      overflow-y: auto;
+      -webkit-app-region: no-drag;
+    }
+
+    .suggestion-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 12px;
+      animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    .suggestion-card .time {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 6px;
+    }
+
+    .suggestion-card .text {
+      font-size: 13px;
+      line-height: 1.5;
+      color: #e0e0e0;
+    }
+
+    .suggestion-card.transcription {
+      border-color: rgba(76, 175, 80, 0.3);
+    }
+
+    .suggestion-card.ai-suggestion {
+      border-color: rgba(255, 152, 0, 0.3);
+    }
+
+    .status {
+      text-align: center;
+      padding: 20px;
+      color: #888;
+      font-size: 13px;
+    }
+
+    .recording-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background: #ff3b30;
+      border-radius: 50%;
+      margin-right: 8px;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.3;
+      }
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.3);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(0, 212, 255, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2><span class="recording-indicator"></span>AI Suggestions</h2>
+    <button class="close-btn" onclick="closeWindow()">×</button>
+  </div>
+  
+  <div class="content" id="content">
+    <div class="status">Waiting for meeting to start...</div>
+  </div>
+
+  <script>
+    const content = document.getElementById('content');
+    
+    function closeWindow() {
+      window.close();
+    }
+
+    function addSuggestion(suggestionData) {
+      console.log('Adding suggestion:', suggestionData);
+      
+      const card = document.createElement('div');
+      card.className = 'suggestion-card ai-suggestion';
+      
+      const timeEl = document.createElement('div');
+      timeEl.className = 'time';
+      timeEl.textContent = suggestionData.metadata?.timestamp 
+        ? new Date(suggestionData.metadata.timestamp).toLocaleTimeString() 
+        : new Date().toLocaleTimeString();
+      
+      const textEl = document.createElement('div');
+      textEl.className = 'text';
+      
+      let html = '';
+      
+      // Questions
+      if (suggestionData.questions && suggestionData.questions.length > 0) {
+        html += '<div style="margin-bottom: 10px;"><strong>❓ Questions:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        suggestionData.questions.forEach(q => {
+          html += `<li style="margin-bottom: 3px;">${q}</li>`;
+        });
+        html += '</ul></div>';
+      }
+      
+      // Resources
+      if (suggestionData.resources && suggestionData.resources.length > 0) {
+        html += '<div style="margin-bottom: 10px;"><strong>📚 Resources:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        suggestionData.resources.forEach(r => {
+          html += `<li style="margin-bottom: 3px;"><a href="${r.url}" target="_blank" style="color: #00d4ff;">${r.title}</a> - ${r.description}</li>`;
+        });
+        html += '</ul></div>';
+      }
+      
+      // Action Items
+      if (suggestionData.actionItems && suggestionData.actionItems.length > 0) {
+        html += '<div style="margin-bottom: 10px;"><strong>✅ Action Items:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        suggestionData.actionItems.forEach(a => {
+          html += `<li style="margin-bottom: 3px;">${a}</li>`;
+        });
+        html += '</ul></div>';
+      }
+      
+      // Insights
+      if (suggestionData.insights && suggestionData.insights.length > 0) {
+        html += '<div><strong>💡 Insights:</strong><ul style="margin-left: 20px; margin-top: 5px;">';
+        suggestionData.insights.forEach(i => {
+          html += `<li style="margin-bottom: 3px;">${i}</li>`;
+        });
+        html += '</ul></div>';
+      }
+      
+      textEl.innerHTML = html;
+      
+      card.appendChild(timeEl);
+      card.appendChild(textEl);
+      
+      // Remove status message if present
+      const status = content.querySelector('.status');
+      if (status) {
+        status.remove();
+      }
+      
+      content.appendChild(card);
+      content.scrollTop = content.scrollHeight;
+    }
+
+    // Listen for suggestions from main process
+    console.log('Floating window loaded, setting up listeners...');
+    console.log('electronAPI available:', !!window.electronAPI);
+    
+    if (window.electronAPI) {
+      // Only listen for AI suggestions, not transcriptions
+      console.log('Setting up suggestion listener');
+      window.electronAPI.onSuggestion((suggestionData) => {
+        console.log('Suggestion received in floating window:', suggestionData);
+        addSuggestion(suggestionData);
+      });
+      
+      window.electronAPI.onStartMeeting((data) => {
+        console.log('Meeting started:', data);
+        const status = content.querySelector('.status');
+        if (status) {
+          status.textContent = `Recording ${data.app} meeting...`;
+        }
+      });
+    } else {
+      console.warn('electronAPI not available!');
+    }
+  </script>
+</body>
+</html>

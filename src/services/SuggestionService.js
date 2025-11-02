@@ -176,18 +176,18 @@ class SuggestionService {
           {
             role: 'system',
             content: `You are an AI assistant helping during a meeting. Provide CONCISE, ACTIONABLE suggestions:
-1. 2-3 relevant questions to deepen discussion
-2. 1-2 related resources (realistic URLs)
-3. Action items if mentioned
-4. 1-2 key insights
+              1. 2-3 relevant questions to deepen discussion
+              2. 1-2 related resources (realistic URLs)
+              3. Action items if mentioned
+              4. 1-2 key insights
 
-Keep it BRIEF and FAST. Format as JSON:
-{
-  "questions": ["q1", "q2"],
-  "resources": [{"title": "Title", "url": "https://...", "description": "desc"}],
-  "actionItems": ["action1"],
-  "insights": ["insight1"]
-}`
+              Keep it BRIEF and FAST. Format as JSON:
+              {
+                "questions": ["q1", "q2"],
+                "resources": [{"title": "Title", "url": "https://...", "description": "desc"}],
+                "actionItems": ["action1"],
+                "insights": ["insight1"]
+              }`
           },
           {
             role: 'user',

@@ -31,6 +31,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onSettingsChanged: (callback) => {
     ipcRenderer.on('settings-changed', callback);
   },
+  onStartMeeting: (callback) => {
+    ipcRenderer.on('start-meeting', (event, data) => callback(data));
+  },
+  onDownloadSummary: (callback) => {
+    ipcRenderer.on('download-summary', callback);
+  },
+  onTranscription: (callback) => {
+    ipcRenderer.on('transcription', (event, text) => callback(text));
+  },
+  onSuggestion: (callback) => {
+    ipcRenderer.on('suggestion', (event, text) => callback(text));
+  },
+  onAutoStartRecording: (callback) => {
+    ipcRenderer.on('auto-start-recording', callback);
+  },
+  onAutoStopRecording: (callback) => {
+    ipcRenderer.on('auto-stop-recording', callback);
+  },
+  sendTranscription: (text) => {
+    ipcRenderer.send('transcription', text);
+  },
+  sendSuggestion: (text) => {
+    ipcRenderer.send('suggestion', text);
+  },
   
   // Platform info
   platform: process.platform,

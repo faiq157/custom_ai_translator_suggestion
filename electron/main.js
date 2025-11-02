@@ -1,19 +1,24 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog, shell, globalShortcut } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, dialog, shell, globalShortcut, Tray, nativeImage, screen } from 'electron';
 import { spawn } from 'child_process';
 import { createServer } from 'net';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import SettingsManager from './settings.js';
+import MeetingDetector from './meetingDetector.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let mainWindow;
 let settingsWindow;
+let floatingWindow;
 let serverProcess;
 let settingsManager;
+let meetingDetector;
+let tray;
 let SERVER_PORT = 3000;
+let isInMeeting = false;
 
 // Check if server is already running
 function isServerRunning(port) {
@@ -156,6 +161,58 @@ function createSettingsWindow() {
   });
 }
 
+// Create floating suggestion window
+function createFloatingWindow() {
+  try {
+    const primaryDisplay = screen.getPrimaryDisplay();
+    const { width, height } = primaryDisplay.workAreaSize;
+
+    console.log('Creating floating window at position:', { x: width - 420, y: 50, width: 400, height: height - 100 });
+
+    floatingWindow = new BrowserWindow({
+      width: 400,
+      height: height - 100,
+      x: width - 420,
+      y: 50,
+      frame: false,
+      transparent: false,
+      alwaysOnTop: true,
+      skipTaskbar: false, // Show in taskbar for easier debugging
+      resizable: true,
+      webPreferences: {
+        preload: path.join(__dirname, 'preload.js'),
+        nodeIntegration: false,
+        contextIsolation: true
+      },
+      backgroundColor: '#1a1a2e',
+      show: false
+    });
+
+    const floatingURL = `http://localhost:${SERVER_PORT}/floating`;
+    console.log('Loading floating window URL:', floatingURL);
+    
+    floatingWindow.loadURL(floatingURL);
+
+    floatingWindow.webContents.on('did-finish-load', () => {
+      console.log('Floating window loaded successfully');
+    });
+
+    floatingWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('Floating window failed to load:', errorCode, errorDescription);
+    });
+
+    floatingWindow.on('closed', () => {
+      console.log('Floating window closed');
+      floatingWindow = null;
+    });
+
+    return floatingWindow;
+  } catch (error) {
+    console.error('Error creating floating window:', error);
+    return null;
+  }
+}
+
 // Create the main application window
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -241,6 +298,15 @@ function createWindow() {
     }
   });
 
+  // Minimize to tray instead of closing
+  mainWindow.on('close', (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      mainWindow.hide();
+      console.log('Main window hidden (minimized to tray)');
+    }
+  });
+
   // Handle window close
   mainWindow.on('closed', () => {
     mainWindow = null;
@@ -297,10 +363,204 @@ ipcMain.on('open-settings', () => {
   createSettingsWindow();
 });
 
+// Forward transcriptions to floating window
+ipcMain.on('transcription', (event, data) => {
+  if (floatingWindow && !floatingWindow.isDestroyed()) {
+    floatingWindow.webContents.send('transcription', data);
+  }
+});
+
+// Forward AI suggestions to floating window
+ipcMain.on('suggestion', (event, data) => {
+  if (floatingWindow && !floatingWindow.isDestroyed()) {
+    floatingWindow.webContents.send('suggestion', data);
+  }
+});
+
+// Create system tray
+function createTray() {
+  try {
+    // Try multiple icon paths for different environments
+    let iconPath;
+    if (app.isPackaged) {
+      iconPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'public', 'icon.png');
+    } else {
+      iconPath = path.join(__dirname, '..', 'public', 'icon.png');
+    }
+    
+    console.log('Tray icon path:', iconPath);
+    console.log('Icon exists:', fs.existsSync(iconPath));
+    
+    let trayIcon;
+    if (fs.existsSync(iconPath)) {
+      trayIcon = nativeImage.createFromPath(iconPath);
+      if (trayIcon.isEmpty()) {
+        console.warn('Tray icon is empty, using default');
+        trayIcon = nativeImage.createEmpty();
+      } else {
+        trayIcon = trayIcon.resize({ width: 16, height: 16 });
+      }
+    } else {
+      console.warn('Tray icon not found, using empty icon');
+      trayIcon = nativeImage.createEmpty();
+    }
+    
+    tray = new Tray(trayIcon);
+    console.log('Tray created successfully');
+    
+    const contextMenu = Menu.buildFromTemplate([
+      {
+        label: 'Show App',
+        click: () => {
+          if (mainWindow) {
+            mainWindow.show();
+          } else {
+            createWindow();
+          }
+        }
+      },
+      {
+        label: 'Settings',
+        click: () => createSettingsWindow()
+      },
+      { type: 'separator' },
+      {
+        label: 'Quit',
+        click: () => {
+          app.isQuitting = true;
+          app.quit();
+        }
+      }
+    ]);
+    
+    tray.setToolTip('Meeting AI Assistant');
+    tray.setContextMenu(contextMenu);
+    
+    tray.on('click', () => {
+      if (mainWindow) {
+        mainWindow.isVisible() ? mainWindow.hide() : mainWindow.show();
+      } else {
+        createWindow();
+      }
+    });
+  } catch (error) {
+    console.error('Failed to create tray:', error);
+  }
+}
+
+// Handle meeting detection
+function handleMeetingStart(meetingApp) {
+  console.log(`Meeting started in ${meetingApp}`);
+  
+  // Show dialog asking if user wants to use AI assistant
+  const response = dialog.showMessageBoxSync({
+    type: 'question',
+    buttons: ['OK', 'Cancel'],
+    title: 'Meeting Detected',
+    message: `${meetingApp} meeting detected!`,
+    detail: 'Would you like to use AI Assistant for this meeting?'
+  });
+  
+  if (response === 0) { // OK clicked
+    console.log('User accepted AI Assistant');
+    isInMeeting = true;
+    
+    // Create and show floating window
+    if (!floatingWindow) {
+      console.log('Creating floating window...');
+      createFloatingWindow();
+    }
+    
+    // Wait for window to be ready before showing
+    setTimeout(() => {
+      if (floatingWindow) {
+        console.log('Showing floating window');
+        floatingWindow.show();
+        floatingWindow.webContents.send('start-meeting', { app: meetingApp });
+        
+        // Create main window if it doesn't exist (but keep it hidden)
+        if (!mainWindow) {
+          console.log('Creating main window for auto-start (hidden)...');
+          createWindow();
+          // Hide it immediately - only floating panel should be visible
+          setTimeout(() => {
+            if (mainWindow) {
+              mainWindow.hide();
+            }
+          }, 100);
+        }
+        // Don't show main window - only floating panel should be visible
+        
+        // Auto-start recording after a delay to ensure page is fully loaded
+        setTimeout(() => {
+          if (mainWindow && mainWindow.webContents) {
+            console.log('Auto-starting recording...');
+            mainWindow.webContents.send('auto-start-recording');
+            console.log('Auto-start signal sent to main window');
+          } else {
+            console.error('Main window not available for auto-start');
+          }
+        }, 3000); // Increased to 3 seconds
+      } else {
+        console.error('Floating window not created!');
+      }
+    }, 1000);
+  } else {
+    console.log('User declined AI Assistant');
+  }
+}
+
+function handleMeetingEnd(meetingApp) {
+  console.log(`Meeting ended in ${meetingApp}`);
+  isInMeeting = false;
+  
+  // Auto-stop recording if active
+  if (mainWindow) {
+    console.log('Auto-stopping recording...');
+    mainWindow.webContents.send('auto-stop-recording');
+  }
+  
+  // Wait a moment for recording to stop, then hide floating window
+  setTimeout(() => {
+    if (floatingWindow) {
+      floatingWindow.hide();
+    }
+    
+    // Show dialog asking about summary download
+    const response = dialog.showMessageBoxSync({
+      type: 'question',
+      buttons: ['Download Summary', 'No Thanks'],
+      title: 'Meeting Ended',
+      message: 'Your meeting has ended.',
+      detail: 'Would you like to download the meeting summary?'
+    });
+    
+    if (response === 0) { // Download Summary clicked
+      // Trigger summary download
+      if (mainWindow) {
+        mainWindow.webContents.send('download-summary');
+        mainWindow.show();
+      }
+    }
+  }, 1000);
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
   try {
     console.log('Starting Meeting AI Assistant...');
+    
+    // Set app to launch at startup
+    if (!app.isPackaged) {
+      app.setLoginItemSettings({
+        openAtLogin: false // Disable in development
+      });
+    } else {
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        openAsHidden: true
+      });
+    }
     
     // Initialize settings manager
     settingsManager = new SettingsManager();
@@ -310,19 +570,29 @@ app.whenReady().then(async () => {
     // Check if API key is configured
     if (!settingsManager.isConfigured()) {
       console.log('First run or API key not configured');
-      // We'll still start the app but show settings window
     }
     
     await startServer();
     console.log('Server started successfully');
-    createWindow();
     
-    // Show settings on first run
-    if (settings.firstRun) {
-      setTimeout(() => {
-        createSettingsWindow();
-        settingsManager.completeFirstRun();
-      }, 1000);
+    // Create system tray
+    createTray();
+    
+    // Initialize meeting detector
+    meetingDetector = new MeetingDetector();
+    meetingDetector.startMonitoring(handleMeetingStart, handleMeetingEnd);
+    
+    // Only create main window if not started hidden
+    if (!app.getLoginItemSettings().wasOpenedAsHidden) {
+      createWindow();
+      
+      // Show settings on first run
+      if (settings.firstRun) {
+        setTimeout(() => {
+          createSettingsWindow();
+          settingsManager.completeFirstRun();
+        }, 1000);
+      }
     }
   } catch (error) {
     console.error('Failed to start application:', error);
@@ -338,14 +608,28 @@ app.whenReady().then(async () => {
 });
 
 app.on('window-all-closed', () => {
+  // Don't quit on window close - keep running in tray
+  if (process.platform !== 'darwin' && !app.isQuitting) {
+    // Keep app running in background
+    return;
+  }
+  
+  if (meetingDetector) {
+    meetingDetector.stopMonitoring();
+  }
   stopServer();
   globalShortcut.unregisterAll();
+  
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
 app.on('before-quit', () => {
+  app.isQuitting = true;
+  if (meetingDetector) {
+    meetingDetector.stopMonitoring();
+  }
   stopServer();
   globalShortcut.unregisterAll();
 });

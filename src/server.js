@@ -6,6 +6,7 @@ import compression from 'compression';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import config from './config/config.js';
 import logger from './config/logger.js';
 import SocketHandler from './websocket/socketHandler.js';
@@ -40,6 +41,27 @@ app.use(express.urlencoded({ extended: true }));
 
 // Serve static files
 app.use(express.static(config.paths.public));
+
+// Floating window route
+app.get('/floating', (req, res) => {
+  const floatingPath = path.join(config.paths.public, 'floating.html');
+  console.log('Floating window requested, path:', floatingPath);
+  console.log('File exists:', fs.existsSync(floatingPath));
+  
+  if (fs.existsSync(floatingPath)) {
+    try {
+      const content = fs.readFileSync(floatingPath, 'utf8');
+      res.type('html').send(content);
+      console.log('Floating window HTML sent successfully');
+    } catch (error) {
+      console.error('Error reading floating.html:', error);
+      res.status(500).send('Error loading floating window');
+    }
+  } else {
+    console.error('floating.html not found at:', floatingPath);
+    res.status(404).send('Floating window not found');
+  }
+});
 
 // Serve audio files for playback with proper headers
 app.use('/audio', (req, res, next) => {
@@ -239,6 +261,33 @@ app.post('/api/export/suggestions', async (req, res) => {
   }
 });
 
+app.post('/api/export/complete-meeting', async (req, res) => {
+  try {
+    const { title, date, transcriptions, suggestions } = req.body;
+    
+    logger.info('Generating complete meeting PDF with AI summary', { 
+      transcriptionCount: transcriptions?.length || 0,
+      suggestionCount: suggestions?.length || 0
+    });
+    
+    const pdfBuffer = await pdfExportService.generateCompleteMeetingPDF({
+      title: title || 'Meeting Summary Report',
+      date: date || new Date().toLocaleString(),
+      transcriptions: transcriptions || [],
+      suggestions: suggestions || []
+    });
+    
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=meeting_summary_${Date.now()}.pdf`);
+    res.send(pdfBuffer);
+    
+    logger.info('Complete meeting PDF generated successfully');
+  } catch (error) {
+    logger.error('Error generating complete meeting PDF', { error: error.message });
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Initialize WebSocket handler
 const socketHandler = new SocketHandler(io);
 
@@ -274,12 +323,12 @@ process.on('SIGINT', gracefulShutdown);
 
 // Start server
 httpServer.listen(config.port, () => {
-  logger.info('🚀 Server started', {
+  logger.info('Server started', {
     port: config.port,
     environment: config.nodeEnv,
     nodeVersion: process.version
   });
-  logger.info(`📱 Open http://localhost:${config.port} in your browser`);
+  logger.info(`Open http://localhost:${config.port} in your browser`);
 });
 
 export default app;

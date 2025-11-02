@@ -3,9 +3,9 @@ import AudioCaptureService from '../services/AudioCaptureService.js';
 import TranscriptionService from '../services/TranscriptionService.js';
 import SuggestionService from '../services/SuggestionService.js';
 import MeetingHistoryService from '../services/MeetingHistoryService.js';
+import VADService from '../services/VADService.js';
 import config from '../config/config.js';
 import path from 'path';
-import fs from 'fs';
 
 class SocketHandler {
   constructor(io, settingsManager = null) {
@@ -16,6 +16,7 @@ class SocketHandler {
     this.transcription = new TranscriptionService();
     this.suggestion = new SuggestionService();
     this.meetingHistory = new MeetingHistoryService();
+    this.vad = new VADService();
     this.isProcessing = false;
     this.isStopping = false;
     this.sessionStartTime = null;
@@ -80,15 +81,26 @@ class SocketHandler {
 
           // Start audio capture
           const started = this.audioCapture.startRecording(async (audioFilePath, fileSize) => {
+            logger.info('🎯 CALLBACK TRIGGERED!', { 
+              audioFilePath, 
+              fileSize,
+              isProcessing: this.isProcessing,
+              isStopping: this.isStopping
+            });
+            
             if (!this.isProcessing || this.isStopping) {
+              logger.warn('⚠️ Skipping chunk - not processing or stopping');
               return;
             }
             
             try {
+              logger.info('🚀 Starting to process audio chunk', { audioFilePath });
               await this.processAudioChunk(audioFilePath, fileSize, socket);
+              logger.info('✅ Chunk processing complete');
             } catch (error) {
-              logger.error('Error processing audio chunk', { 
+              logger.error('❌ Error processing audio chunk', { 
                 error: error.message,
+                stack: error.stack,
                 file: audioFilePath 
               });
             }
@@ -211,17 +223,47 @@ class SocketHandler {
         timestamp: new Date().toISOString()
       });
 
-      // Step 1: Transcribe audio
+      // Step 1: VAD - Check if audio contains voice
+      logger.info('🔊 Running VAD analysis...', { audioFilePath });
+      const vadResult = await this.vad.analyzeAudio(audioFilePath);
+      logger.info('🔊 VAD analysis complete', { vadResult });
+      
+      if (!vadResult.hasVoice) {
+        logger.warn('⚠️ VAD: No voice detected, skipping transcription', {
+          confidence: vadResult.confidence,
+          energy: vadResult.energy
+        });
+        return;
+      }
+      
+      logger.info('✅ VAD: Voice detected, proceeding with transcription', {
+        confidence: vadResult.confidence,
+        energy: vadResult.energy
+      });
+
+      // Step 2: Transcribe audio
+      logger.info('📝 Calling Whisper API...', { audioFilePath });
       socket.emit('processing', { 
         stage: 'transcribing',
         message: 'Transcribing audio...' 
       });
 
       const transcriptionResult = await this.transcription.transcribeAudio(audioFilePath);
+      
+      logger.info('📝 Whisper API response', { 
+        isSilence: transcriptionResult.isSilence,
+        hasText: !!transcriptionResult.text,
+        textLength: transcriptionResult.text?.length || 0,
+        text: transcriptionResult.text?.substring(0, 50) || '(empty)'
+      });
 
       // Skip if silence detected or if stopping
       if (transcriptionResult.isSilence || !transcriptionResult.text || this.isStopping) {
-        logger.debug('Silence detected or stopping, skipping transcription and AI processing');
+        logger.warn('⚠️ Skipping - Whisper returned silence or empty', {
+          isSilence: transcriptionResult.isSilence,
+          hasText: !!transcriptionResult.text,
+          isStopping: this.isStopping
+        });
         return;
       }
 

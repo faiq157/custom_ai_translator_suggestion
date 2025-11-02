@@ -3,15 +3,16 @@ import logger from '../config/logger.js';
 
 class VADService {
   constructor(options = {}) {
-    // VAD configuration
-    this.energyThreshold = options.energyThreshold || 0.02; // Energy threshold for voice detection
+    // VAD configuration - LOWERED thresholds to accept more audio
+    this.energyThreshold = options.energyThreshold || 0.005; // Lowered from 0.02 to 0.005
     this.minSpeechDuration = options.minSpeechDuration || 300; // Minimum speech duration in ms
-    this.silenceThreshold = options.silenceThreshold || 0.01; // Silence threshold
+    this.silenceThreshold = options.silenceThreshold || 0.003; // Lowered from 0.01 to 0.003
     this.frameSize = options.frameSize || 512; // Frame size for analysis
     
     logger.info('VAD Service initialized', {
       energyThreshold: this.energyThreshold,
-      minSpeechDuration: this.minSpeechDuration
+      minSpeechDuration: this.minSpeechDuration,
+      silenceThreshold: this.silenceThreshold
     });
   }
 

@@ -14,6 +14,7 @@ const clearTranscriptBtn = document.getElementById('clearTranscriptBtn');
 const clearSuggestionsBtn = document.getElementById('clearSuggestionsBtn');
 const downloadTranscriptBtn = document.getElementById('downloadTranscriptBtn');
 const downloadSuggestionsBtn = document.getElementById('downloadSuggestionsBtn');
+const downloadCompleteSummaryBtn = document.getElementById('downloadCompleteSummaryBtn');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
 const suggestionsPanel = document.getElementById('suggestionsPanel');
 const audioSourceInfo = document.getElementById('audioSourceInfo');
@@ -51,6 +52,7 @@ function setupEventListeners() {
     clearSuggestionsBtn.addEventListener('click', clearSuggestions);
     downloadTranscriptBtn.addEventListener('click', downloadTranscriptPDF);
     downloadSuggestionsBtn.addEventListener('click', downloadSuggestionsPDF);
+    downloadCompleteSummaryBtn.addEventListener('click', downloadCompleteSummaryPDF);
     fullscreenBtn.addEventListener('click', toggleFullscreen);
     
     // Settings button
@@ -162,6 +164,11 @@ function setupSocketListeners() {
         }
         console.log('Transcription received:', data);
         addTranscription(data);
+        
+        // Forward to Electron for floating window
+        if (window.electronAPI) {
+            window.electronAPI.sendTranscription(data.text);
+        }
     });
 
     socket.on('suggestions', (data) => {
@@ -172,6 +179,12 @@ function setupSocketListeners() {
         }
         console.log('Suggestions received:', data);
         addSuggestions(data);
+        
+        // Forward to Electron for floating window
+        if (window.electronAPI) {
+            console.log('Forwarding suggestions to floating panel:', data);
+            window.electronAPI.sendSuggestion(data);
+        }
     });
 
     socket.on('processing', (data) => {
@@ -899,6 +912,55 @@ function downloadSuggestionsPDF() {
     }
 }
 
+function downloadCompleteSummaryPDF() {
+    if (currentTranscriptions.length === 0) {
+        showToast('No meeting data to export', 'info');
+        return;
+    }
+
+    try {
+        showProcessing('Generating complete meeting summary with AI...');
+        
+        // Create PDF content
+        const content = {
+            title: 'Meeting Summary Report',
+            date: new Date().toLocaleString(),
+            transcriptions: currentTranscriptions,
+            suggestions: currentSuggestions
+        };
+
+        // Send to server to generate PDF with AI summary
+        fetch('/api/export/complete-meeting', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(content)
+        })
+        .then(response => response.blob())
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `meeting_summary_${Date.now()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            hideProcessing();
+            showToast('Complete meeting summary downloaded successfully! 🎉', 'success');
+        })
+        .catch(error => {
+            console.error('Error downloading complete summary:', error);
+            hideProcessing();
+            showToast('Failed to download meeting summary', 'error');
+        });
+    } catch (error) {
+        console.error('Error generating complete summary:', error);
+        hideProcessing();
+        showToast('Failed to generate meeting summary', 'error');
+    }
+}
+
 // Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
     // ESC to exit fullscreen
@@ -931,3 +993,20 @@ document.addEventListener('keydown', (e) => {
         }
     }
 });
+
+// Listen for auto-start/stop from Electron
+if (window.electronAPI) {
+    window.electronAPI.onAutoStartRecording(() => {
+        console.log('Auto-starting recording from meeting detection');
+        if (!isRecording) {
+            startRecording();
+        }
+    });
+    
+    window.electronAPI.onAutoStopRecording(() => {
+        console.log('Auto-stopping recording from meeting detection');
+        if (isRecording) {
+            stopRecording();
+        }
+    });
+}
