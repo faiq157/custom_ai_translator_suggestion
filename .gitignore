@@ -37,8 +37,16 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+*.backup.*
+*.old
+*.bak
 test-*.js
+
+# Build logs
+build-output.log
+win-build.log
 
 # Documentation (if you want to exclude)
 *.md
 !README.md
+!ARCHITECTURE.txt

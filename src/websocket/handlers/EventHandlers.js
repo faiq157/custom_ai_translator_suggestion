@@ -1,0 +1,150 @@
+/**
+ * Event Handlers
+ * Handles misc socket events like stats, settings, context clearing
+ */
+
+import logger from '../../config/logger.js';
+import { SOCKET_EVENTS, SUCCESS_MESSAGES, LOG_PREFIX } from '../../constants/index.js';
+
+export class EventHandlers {
+  constructor(services, state) {
+    this.services = services;
+    this.state = state;
+  }
+
+  /**
+   * Handle settings update
+   * @param {Object} settings - User settings
+   * @param {Object} socket - Socket.io socket instance
+   */
+  handleUpdateSettings(settings, socket) {
+    this.state.userSettings = settings;
+    
+    logger.info(`${LOG_PREFIX.INFO} User settings updated`, {
+      captureMic: settings?.audio?.captureMicrophone,
+      captureSystem: settings?.audio?.captureSystemAudio,
+      autoDetect: settings?.audio?.autoDetectHeadphones
+    });
+    
+    socket.emit(SOCKET_EVENTS.SETTINGS_UPDATED, { 
+      success: true,
+      message: SUCCESS_MESSAGES.SETTINGS_UPDATED
+    });
+  }
+
+  /**
+   * Handle get stats request
+   * @param {Object} socket - Socket.io socket instance
+   */
+  handleGetStats(socket) {
+    socket.emit(SOCKET_EVENTS.STATS, this._getStats());
+  }
+
+  /**
+   * Handle clear context request
+   * @param {Object} socket - Socket.io socket instance
+   */
+  handleClearContext(socket) {
+    this.services.suggestion.clearContext();
+    
+    socket.emit('context-cleared', {
+      message: SUCCESS_MESSAGES.CONTEXT_CLEARED,
+      timestamp: new Date().toISOString()
+    });
+    
+    logger.info(`${LOG_PREFIX.SUCCESS} Context cleared`, { socketId: socket.id });
+  }
+
+  /**
+   * Handle client disconnect
+   * @param {Object} socket - Socket.io socket instance
+   */
+  handleDisconnect(socket) {
+    logger.info(`${LOG_PREFIX.INFO} Client disconnected`, { socketId: socket.id });
+    
+    // Clean up if client disconnects during recording
+    if (this.state.isProcessing) {
+      this.state.isStopping = true;
+      this.state.isProcessing = false;
+      this._stopPauseDetection();
+      logger.info(`${LOG_PREFIX.WARNING} Recording cleaned up after disconnect`);
+    }
+  }
+
+  /**
+   * Start pause detection interval
+   * @param {Object} socket - Socket.io socket instance
+   */
+  startPauseDetection(socket) {
+    // Check every 2 seconds if there's been a pause
+    this.state.pauseCheckInterval = setInterval(async () => {
+      // Skip if recording is being stopped
+      if (this.state.isStopping) {
+        return;
+      }
+      
+      const batchedText = this.services.suggestion.checkPauseTimeout();
+      
+      if (batchedText) {
+        logger.info(`${LOG_PREFIX.INFO} Pause detected, generating suggestions for buffered content`);
+        
+        socket.emit('processing', { 
+          stage: 'generating-suggestions',
+          message: 'Generating AI suggestions...' 
+        });
+        
+        try {
+          const suggestions = await this.services.suggestion.generateSuggestions(batchedText);
+          
+          if (suggestions) {
+            this.services.meetingHistory.addSuggestion(suggestions);
+            socket.emit(SOCKET_EVENTS.SUGGESTION, suggestions);
+          }
+          
+          socket.emit(SOCKET_EVENTS.STATS, this._getStats());
+        } catch (error) {
+          logger.error(`${LOG_PREFIX.ERROR} Error generating suggestions on pause`, { 
+            error: error.message 
+          });
+        }
+      }
+    }, 2000);
+  }
+
+  /**
+   * Stop pause detection interval
+   * @private
+   */
+  _stopPauseDetection() {
+    if (this.state.pauseCheckInterval) {
+      clearInterval(this.state.pauseCheckInterval);
+      this.state.pauseCheckInterval = null;
+      logger.debug('Pause detection stopped');
+    }
+  }
+
+  /**
+   * Get current statistics
+   * @private
+   */
+  _getStats() {
+    const transcriptionStats = this.services.transcription.getStats();
+    const suggestionStats = this.services.suggestion.getStats();
+    const audioStats = this.services.audioService?.getStats() || {
+      isRecording: false,
+      chunkCount: 0,
+      chunkDuration: 0
+    };
+
+    return {
+      audio: audioStats,
+      transcription: transcriptionStats,
+      suggestions: suggestionStats,
+      totalCost: transcriptionStats.totalCost + suggestionStats.totalCost,
+      isProcessing: this.state.isProcessing,
+      sessionDuration: this.state.sessionStartTime 
+        ? Date.now() - this.state.sessionStartTime 
+        : 0
+    };
+  }
+}

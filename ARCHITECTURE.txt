@@ -1,0 +1,337 @@
+================================================================================
+  MEETING AI ASSISTANT - CODE ARCHITECTURE DOCUMENTATION
+================================================================================
+
+📁 PROJECT STRUCTURE
+================================================================================
+
+src/
+├── constants/
+│   └── index.js                    # All application constants
+│
+├── utils/
+│   ├── responseHelper.js           # Standardized API responses
+│   └── errorHandler.js             # Error handling utilities
+│
+├── middleware/
+│   ├── security.middleware.js      # Security (Helmet, CORS)
+│   └── static.middleware.js        # Static files & floating window
+│
+├── routes/
+│   ├── index.js                    # Central router configuration
+│   ├── health.routes.js            # Health check endpoints
+│   ├── meeting.routes.js           # Meeting management
+│   ├── system.routes.js            # System checks
+│   ├── audio.routes.js             # Audio device management
+│   └── export.routes.js            # PDF export endpoints
+│
+├── websocket/
+│   ├── socketHandler.js            # Main WebSocket coordinator
+│   └── handlers/
+│       ├── RecordingHandler.js     # Recording start/stop logic
+│       ├── AudioProcessor.js       # Audio processing pipeline
+│       └── EventHandlers.js        # Misc event handling
+│
+├── services/
+│   ├── AudioCaptureService.js      # Audio recording
+│   ├── TranscriptionService.js     # Whisper API integration
+│   ├── SuggestionService.js        # AI suggestions
+│   ├── VADService.js               # Voice Activity Detection
+│   ├── MeetingHistoryService.js    # Meeting data management
+│   ├── PDFExportService.js         # PDF generation
+│   ├── SystemCheckService.js       # System dependencies
+│   └── AudioDeviceService.js       # Audio device management
+│
+├── config/
+│   ├── config.js                   # Application configuration
+│   └── logger.js                   # Winston logger setup
+│
+└── server.js                       # Main server entry point
+
+================================================================================
+📚 KEY CONCEPTS
+================================================================================
+
+1. SEPARATION OF CONCERNS
+   - Routes: Handle HTTP requests
+   - Handlers: Handle WebSocket events
+   - Services: Business logic
+   - Utils: Reusable utilities
+   - Middleware: Request processing
+   - Constants: Configuration values
+
+2. MODULAR ARCHITECTURE
+   - Each module has a single responsibility
+   - Easy to test individual components
+   - Easy to add new features
+   - Easy to maintain and debug
+
+3. CONSISTENT PATTERNS
+   - All routes use asyncHandler for error handling
+   - All responses use responseHelper utilities
+   - All errors use custom error classes
+   - All logs use LOG_PREFIX constants
+
+================================================================================
+🔄 DATA FLOW
+================================================================================
+
+HTTP REQUEST FLOW:
+------------------
+Client → Express Middleware → Route Handler → Service → Response Helper → Client
+
+WEBSOCKET FLOW:
+---------------
+Client → SocketHandler → Specialized Handler → Service → Emit to Client
+
+AUDIO PROCESSING PIPELINE:
+---------------------------
+1. AudioCaptureService records audio chunks
+2. AudioProcessor receives chunks
+3. VADService checks for voice activity
+4. TranscriptionService transcribes audio (Whisper API)
+5. SuggestionService generates AI suggestions (GPT-4)
+6. MeetingHistoryService saves data
+7. Results emitted to client via WebSocket
+
+================================================================================
+🎯 MAIN COMPONENTS
+================================================================================
+
+SERVER.JS (Main Entry Point)
+-----------------------------
+- Initializes Express app
+- Configures middleware (security, CORS, compression)
+- Sets up static file serving
+- Configures all routes
+- Initializes WebSocket handler
+- Handles graceful shutdown
+
+SOCKET HANDLER (WebSocket Coordinator)
+---------------------------------------
+- Manages WebSocket connections
+- Delegates to specialized handlers:
+  * RecordingHandler: Start/stop recording
+  * AudioProcessor: Process audio chunks
+  * EventHandlers: Settings, stats, context
+
+RECORDING HANDLER
+-----------------
+- Handles recording start/stop
+- Manages recording state
+- Coordinates with services
+- Generates meeting summaries
+
+AUDIO PROCESSOR
+---------------
+- Processes individual audio chunks
+- Runs VAD analysis
+- Performs transcription
+- Generates AI suggestions
+- Emits results to client
+
+EVENT HANDLERS
+--------------
+- Updates settings
+- Provides stats
+- Clears context
+- Handles disconnects
+- Manages pause detection
+
+================================================================================
+📊 SERVICES
+================================================================================
+
+AudioCaptureService
+-------------------
+Purpose: Records audio using arecord
+Methods:
+- startRecording(callback)
+- stopRecording()
+- cleanup()
+
+TranscriptionService
+--------------------
+Purpose: Transcribes audio using Whisper API
+Methods:
+- transcribeAudio(audioFilePath)
+- getStats()
+- resetStats()
+
+SuggestionService
+-----------------
+Purpose: Generates AI suggestions using GPT-4
+Methods:
+- generateSuggestions(text)
+- addTranscription(text)
+- clearContext()
+- clearBuffer()
+- getStats()
+
+VADService
+----------
+Purpose: Detects voice activity in audio
+Methods:
+- analyzeAudio(audioFilePath)
+
+MeetingHistoryService
+---------------------
+Purpose: Manages meeting data and generates PDFs
+Methods:
+- startMeeting()
+- endMeeting()
+- addTranscription(text, timestamp)
+- addSuggestion(suggestion)
+- updateMetadata(data)
+
+================================================================================
+🛡️ ERROR HANDLING
+================================================================================
+
+Custom Error Classes:
+- AppError: Base error class
+- ValidationError: For validation failures
+- NotFoundError: For missing resources
+
+Global Error Handler:
+- Catches all unhandled errors
+- Logs error details
+- Returns standardized error response
+
+Async Handler Wrapper:
+- Wraps async route handlers
+- Automatically catches Promise rejections
+- Passes errors to global error handler
+
+================================================================================
+📝 CONSTANTS
+================================================================================
+
+HTTP_STATUS: Status codes (200, 404, 500, etc.)
+SOCKET_EVENTS: WebSocket event names
+AUDIO_CONSTANTS: Audio processing settings
+MEETING_STATE: Meeting state values
+API_ROUTES: API endpoint paths
+TIMEOUTS: Timeout values
+ERROR_MESSAGES: Standardized error messages
+SUCCESS_MESSAGES: Standardized success messages
+LOG_PREFIX: Log message prefixes with emojis
+
+================================================================================
+🔧 UTILITIES
+================================================================================
+
+Response Helper:
+- sendSuccess(res, data, message, statusCode)
+- sendError(res, message, statusCode, error)
+- sendFileDownload(res, buffer, filename, contentType)
+- sendJSON(res, data, statusCode)
+
+Error Handler:
+- asyncHandler(fn): Wraps async functions
+- globalErrorHandler(err, req, res, next): Global error middleware
+- handleUnhandledRejection(): Process-level error handler
+- handleUncaughtException(): Process-level error handler
+
+================================================================================
+🚀 RUNNING THE APPLICATION
+================================================================================
+
+Development:
+  npm run dev
+
+Production:
+  npm start
+
+Build AppImage:
+  npm run build:appimage
+
+Run AppImage:
+  ./dist/Meeting\ AI\ Assistant-1.0.0.AppImage
+
+================================================================================
+🧪 TESTING CHECKLIST
+================================================================================
+
+✅ Server starts without errors
+✅ WebSocket connections work
+✅ Audio recording starts/stops
+✅ VAD detects voice activity
+✅ Whisper transcription works
+✅ AI suggestions generate
+✅ Meeting history saves
+✅ PDF export works
+✅ Floating window displays suggestions
+✅ Meeting detection triggers
+✅ Graceful shutdown works
+
+================================================================================
+📖 ADDING NEW FEATURES
+================================================================================
+
+To add a new HTTP endpoint:
+1. Create route in appropriate routes file
+2. Use asyncHandler wrapper
+3. Use responseHelper for responses
+4. Add constants if needed
+
+To add a new WebSocket event:
+1. Add event name to SOCKET_EVENTS constant
+2. Add handler in appropriate handler class
+3. Update SocketHandler to wire up event
+
+To add a new service:
+1. Create service class in services/
+2. Implement required methods
+3. Add to SocketHandler services object
+4. Use in handlers as needed
+
+================================================================================
+🔍 DEBUGGING TIPS
+================================================================================
+
+1. Check logs with LOG_PREFIX emojis for easy scanning
+2. Use browser DevTools for WebSocket messages
+3. Check /health endpoint for server status
+4. Review meeting JSON files in ~/.meeting-ai-assistant/meetings/
+5. Check audio files in ~/.meeting-ai-assistant/temp_audio/
+6. Use 'get-stats' socket event to check current state
+
+================================================================================
+📚 DEPENDENCIES
+================================================================================
+
+Core:
+- express: Web server
+- socket.io: WebSocket communication
+- pdfkit: PDF generation
+- openai: AI services (Whisper, GPT-4)
+
+Security:
+- helmet: Security headers
+- cors: Cross-origin resource sharing
+
+Utilities:
+- winston: Logging
+- compression: Response compression
+- dotenv: Environment variables
+
+================================================================================
+🎓 BEST PRACTICES FOLLOWED
+================================================================================
+
+✅ Single Responsibility Principle
+✅ DRY (Don't Repeat Yourself)
+✅ Consistent naming conventions
+✅ Comprehensive error handling
+✅ Logging at appropriate levels
+✅ Separation of concerns
+✅ Modular architecture
+✅ Async/await for async operations
+✅ JSDoc comments for documentation
+✅ Constants for magic numbers
+✅ Utility functions for common operations
+
+================================================================================
+END OF DOCUMENTATION
+================================================================================
