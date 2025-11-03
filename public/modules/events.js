@@ -61,10 +61,7 @@ export function setupEventListeners() {
  */
 function handleSettingsClick() {
     console.log('Settings button clicked');
-    console.log('window.electronAPI:', window.electronAPI);
-    console.log('window.isElectron:', window.isElectron);
     
-    // Check if running in Electron
     if (window.electronAPI && window.electronAPI.openSettings) {
         console.log('Opening settings via electronAPI');
         try {
@@ -73,14 +70,9 @@ function handleSettingsClick() {
             console.error('Error opening settings:', error);
             alert('Error opening settings. Try using Cmd/Ctrl+, keyboard shortcut.');
         }
-    } else if (window.isElectron) {
-        // For Electron without direct API
-        console.log('Electron detected but no API');
-        alert('Settings: Please press Cmd/Ctrl+, to open settings');
     } else {
-        // For web version, show alert
-        console.log('Web version detected');
-        alert('Settings are available in the desktop version. In web mode, configure via .env file.');
+        console.log('Electron API not available');
+        alert('Settings: Please press Cmd/Ctrl+, to open settings');
     }
 }
 

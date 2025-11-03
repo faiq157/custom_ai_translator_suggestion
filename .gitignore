@@ -1,5 +1,7 @@
 node_modules/
 .env
+.env.local
+.env.*.local
 *.wav
 *.mp3
 *.webm
@@ -11,7 +13,9 @@ exports/
 .DS_Store
 *.log
 dist/
-build/
+build/*
+!build/installer.nsh
+!build/entitlements.mac.plist
 coverage/
 .vscode/
 .idea/
@@ -33,6 +37,7 @@ out/
 # Windows
 Thumbs.db
 *.ico
+!public/icon.ico
 
 # Temporary files
 *.tmp
@@ -50,3 +55,7 @@ win-build.log
 *.md
 !README.md
 !ARCHITECTURE.txt
+!WINDOWS_BUILD_GUIDE.md
+!CODE_SIGNING_GUIDE.md
+!BUILD_INSTRUCTIONS.md
+!DISTRIBUTION_SUMMARY.md

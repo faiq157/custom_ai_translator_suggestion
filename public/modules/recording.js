@@ -12,13 +12,6 @@ export async function startRecording() {
     if (state.isRecording) return;
     
     try {
-        // Desktop mode only
-        if (!window.isElectron) {
-            showToast('❌ This app only works in desktop mode. Please use the desktop application.', 'error');
-            return;
-        }
-        
-        // Use desktop mode
         showProcessing('Starting audio capture...');
         
         // Get user settings from Electron and send to server
@@ -60,7 +53,6 @@ export function stopRecording() {
     
     setRecording(false);
     
-    // Desktop mode only
     emitStopRecording();
     if (elements.startBtn) elements.startBtn.disabled = false;
     if (elements.stopBtn) elements.stopBtn.disabled = true;

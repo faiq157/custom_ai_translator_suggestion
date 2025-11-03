@@ -11,6 +11,7 @@
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "electron-builder",
     "electron:build:win": "electron-builder --win --x64",
+    "build:win:installer": "electron-builder --win nsis --x64",
     "build:win:portable": "electron-builder --win portable --x64",
     "electron:build:mac": "electron-builder --mac",
     "electron:build:linux": "electron-builder --linux --x64",
@@ -97,15 +98,11 @@
             "x64",
             "ia32"
           ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
         }
       ],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "mac": {
       "target": [
@@ -142,9 +139,27 @@
     },
     "nsis": {
       "oneClick": false,
+      "allowElevation": true,
       "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico",
+      "installerHeaderIcon": "public/icon.ico",
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Meeting AI Assistant",
+      "runAfterFinish": true,
+      "menuCategory": true,
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "deleteAppDataOnUninstall": false,
+      "perMachine": false,
+      "license": "LICENSE",
+      "installerLanguages": [
+        "en_US"
+      ],
+      "warningsAsErrors": false,
+      "displayLanguageSelector": false,
+      "multiLanguageInstaller": false,
+      "packElevateHelper": true
     }
   }
 }

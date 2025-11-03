@@ -30,13 +30,26 @@ AI-powered desktop application for real-time meeting transcription and intellige
 
 ## Installation
 
+### For Users (Windows)
+1. Download `Meeting AI Assistant-Setup-1.0.0.exe`
+2. Run the installer
+3. Choose installation directory
+4. Desktop shortcut will be created automatically
+5. Launch and configure your OpenAI API key
+
+### For Developers
 ```bash
 # Install dependencies
 npm install
 
-# Run the application
+# Run the application in development mode
 npm run electron
+
+# Build Windows installer
+npm run build:win:installer
 ```
+
+📖 **See [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) for complete build guide**
 
 ## Configuration
 
@@ -96,10 +109,36 @@ npm run electron
 - **mic**: Microphone capture
 - **PulseAudio**: System audio (Linux)
 
+## Building for Distribution
+
+### Quick Build
+```bash
+npm run build:win:installer
+```
+
+Output: `dist/Meeting AI Assistant-Setup-1.0.0.exe`
+
+### Documentation
+- 📖 [BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md) - Quick start guide
+- 📖 [WINDOWS_BUILD_GUIDE.md](WINDOWS_BUILD_GUIDE.md) - Complete Windows build guide
+- 📖 [CODE_SIGNING_GUIDE.md](CODE_SIGNING_GUIDE.md) - Prevent security warnings
+
+### Features of Built Installer
+- ✅ Professional NSIS installer (like VSCode)
+- ✅ Custom installation directory selection
+- ✅ Desktop shortcut creation
+- ✅ Start Menu integration
+- ✅ Uninstaller included
+- ✅ Run after installation option
+- ✅ Code signing support (prevents Windows warnings)
+
 ## License
 
 MIT
 
 ## Support
 
-For issues or questions, please open an issue on GitHub.
+For issues or questions:
+- 📧 Email: faiqa5122@gmail.com
+- 🐛 GitHub Issues: [Create an issue](https://github.com/yourusername/meeting-ai-assistant/issues)
+- 📖 Documentation: See guides in repository
