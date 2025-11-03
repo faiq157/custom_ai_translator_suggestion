@@ -79,6 +79,12 @@ class WindowsAudioService {
       });
 
       listProcess.on('exit', () => {
+        // Log raw output for debugging
+        logger.info('Raw ffmpeg output length:', output.length);
+        if (output.length > 0) {
+          logger.info('First 500 chars:', output.substring(0, 500));
+        }
+
         // Parse audio devices from output
         const lines = output.split('\n');
         const audioDevices = [];
@@ -87,20 +93,36 @@ class WindowsAudioService {
         for (const line of lines) {
           if (line.includes('DirectShow audio devices')) {
             inAudioSection = true;
+            logger.info('Found audio devices section');
             continue;
           }
           if (inAudioSection && line.includes('DirectShow video devices')) {
+            logger.info('End of audio devices section');
             break;
           }
           if (inAudioSection && line.includes('"')) {
             const match = line.match(/"([^"]+)"/);
             if (match) {
               audioDevices.push(match[1]);
+              logger.info(`Found device: ${match[1]}`);
             }
           }
         }
 
         logger.info(`✅ Available audio devices: ${audioDevices.length}`);
+        
+        if (audioDevices.length === 0) {
+          logger.error('❌ No audio devices detected by ffmpeg!');
+          logger.error('💡 This usually means:');
+          logger.error('1. ffmpeg is not properly installed');
+          logger.error('2. No audio devices are available');
+          logger.error('3. DirectShow drivers are missing');
+          // Use fallback
+          this.audioDevice = null;
+          resolve();
+          return;
+        }
+
         audioDevices.forEach((device, index) => {
           logger.info(`  ${index + 1}. ${device}`);
         });
@@ -116,20 +138,20 @@ class WindowsAudioService {
           logger.info(`✅ Using device: ${this.audioDevice}`);
         } else {
           logger.warn('⚠️ Stereo Mix not found, using first available device');
-          this.audioDevice = audioDevices[0] || null;
-          if (this.audioDevice) {
-            logger.info(`Using device: ${this.audioDevice}`);
-          } else {
-            logger.error('❌ No audio devices found!');
-          }
+          this.audioDevice = audioDevices[0];
+          logger.info(`Using device: ${this.audioDevice}`);
         }
 
         resolve();
       });
 
       listProcess.on('error', (error) => {
-        logger.error('❌ Failed to list devices:', error.message);
-        this.audioDevice = 'Stereo Mix'; // Fallback
+        logger.error(`❌ Failed to spawn ffmpeg: ${error.message}`);
+        if (error.code === 'ENOENT') {
+          logger.error('❌ ffmpeg not found in PATH!');
+          logger.error('💡 Download from: https://www.gyan.dev/ffmpeg/builds/');
+        }
+        this.audioDevice = null;
         resolve();
       });
     });
@@ -137,6 +159,17 @@ class WindowsAudioService {
 
   _recordChunk() {
     if (!this.isRecording) return;
+
+    // Check if we have a valid device
+    if (!this.audioDevice) {
+      logger.error('❌ No audio device available - cannot record');
+      logger.error('💡 Please check:');
+      logger.error('1. ffmpeg is installed and in PATH');
+      logger.error('2. Audio devices are enabled in Windows Sound Settings');
+      logger.error('3. Enable "Stereo Mix" for system audio capture');
+      this.isRecording = false;
+      return;
+    }
 
     try {
       this.chunkCount++;
@@ -146,7 +179,7 @@ class WindowsAudioService {
       logger.info(`🎙️ Recording chunk #${this.chunkCount}`);
 
       // Use detected audio device
-      const audioInput = this.audioDevice ? `audio=${this.audioDevice}` : 'audio=';
+      const audioInput = `audio=${this.audioDevice}`;
       
       const ffmpegArgs = [
         '-f', 'dshow',
@@ -159,7 +192,7 @@ class WindowsAudioService {
         this.currentChunkPath
       ];
 
-      logger.info(`🎙️ Device: ${this.audioDevice || 'default'}`);
+      logger.info(`🎙️ Device: ${this.audioDevice}`);
 
       this.recordProcess = spawn('ffmpeg', ffmpegArgs, {
         windowsHide: true,
