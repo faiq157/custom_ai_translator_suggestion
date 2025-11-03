@@ -44,10 +44,10 @@ export function setupSocketListeners() {
         stopDurationTimer();
         hideProcessing();
         
-        // Show meeting summary notification
-        if (data.meeting && data.meeting.meetingId) {
-            showMeetingSummary(data.meeting);
-        }
+        // Show meeting summary notification (disabled)
+        // if (data.meeting && data.meeting.meetingId) {
+        //     showMeetingSummary(data.meeting);
+        // }
         
         showToast('Recording stopped - Meeting summary generated!', 'success');
         
