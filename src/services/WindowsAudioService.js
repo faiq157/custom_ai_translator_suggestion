@@ -67,7 +67,12 @@ class WindowsAudioService {
     return new Promise((resolve) => {
       logger.info('🔍 Detecting audio devices...');
       
-      const listProcess = spawn('ffmpeg', ['-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
+      // Use correct ffmpeg command to list DirectShow devices
+      const listProcess = spawn('ffmpeg', [
+        '-f', 'dshow',
+        '-list_devices', 'true',
+        '-i', 'dummy'
+      ], {
         windowsHide: true,
         shell: false
       });
@@ -78,33 +83,62 @@ class WindowsAudioService {
         output += data.toString();
       });
 
+      listProcess.stdout.on('data', (data) => {
+        output += data.toString();
+      });
+
       listProcess.on('exit', () => {
-        // Log raw output for debugging
-        logger.info('Raw ffmpeg output length:', output.length);
+        // Log raw output for debugging - show actual content
         if (output.length > 0) {
-          logger.info('First 500 chars:', output.substring(0, 500));
+          // Split into lines and show all lines that might contain device info
+          const lines = output.split('\n');
+          logger.info('=== FFMPEG OUTPUT START ===');
+          lines.forEach((line, index) => {
+            if (line.trim()) {
+              // Highlight lines with quotes (device names)
+              if (line.includes('"')) {
+                logger.info(`>>> ${line.trim()}`);
+              } else if (line.toLowerCase().includes('audio') || 
+                         line.toLowerCase().includes('device') ||
+                         line.toLowerCase().includes('dshow')) {
+                logger.info(`*** ${line.trim()}`);
+              } else if (index < 30) { // Show first 30 lines
+                logger.info(`    ${line.trim()}`);
+              }
+            }
+          });
+          logger.info('=== FFMPEG OUTPUT END ===');
+        } else {
+          logger.warn('⚠️ No output from ffmpeg!');
         }
 
-        // Parse audio devices from output
+        // Parse audio devices from output - try multiple patterns
         const lines = output.split('\n');
         const audioDevices = [];
         
         let inAudioSection = false;
         for (const line of lines) {
-          if (line.includes('DirectShow audio devices')) {
+          // Look for DirectShow audio devices section
+          if (line.includes('DirectShow audio devices') || 
+              line.includes('dshow @ ') && line.toLowerCase().includes('audio')) {
             inAudioSection = true;
-            logger.info('Found audio devices section');
+            logger.info('✅ Found DirectShow audio devices section');
             continue;
           }
-          if (inAudioSection && line.includes('DirectShow video devices')) {
+          
+          // End of audio section
+          if (inAudioSection && (line.includes('DirectShow video devices') || 
+                                  line.includes('dshow @ ') && line.toLowerCase().includes('video'))) {
             logger.info('End of audio devices section');
             break;
           }
+          
+          // Extract device names - look for quoted strings in audio section
           if (inAudioSection && line.includes('"')) {
             const match = line.match(/"([^"]+)"/);
-            if (match) {
+            if (match && match[1] !== 'dummy') {
               audioDevices.push(match[1]);
-              logger.info(`Found device: ${match[1]}`);
+              logger.info(`  📱 Found device: ${match[1]}`);
             }
           }
         }
