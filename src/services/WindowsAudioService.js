@@ -38,8 +38,8 @@ class WindowsAudioService {
     }
 
     logger.info('🎤 WINDOWS AUDIO CAPTURE STARTING');
-    logger.info('Sample rate:', config.audio.sampleRate);
-    logger.info('Chunk duration:', this.chunkDuration, 'ms');
+    logger.info(`Sample rate: ${config.audio.sampleRate}`);
+    logger.info(`Chunk duration: ${this.chunkDuration} ms`);
 
     // Get device from settings or auto-detect
     const configuredDevice = userSettings?.audio?.device;
@@ -100,7 +100,7 @@ class WindowsAudioService {
           }
         }
 
-        logger.info('✅ Available audio devices:', audioDevices.length);
+        logger.info(`✅ Available audio devices: ${audioDevices.length}`);
         audioDevices.forEach((device, index) => {
           logger.info(`  ${index + 1}. ${device}`);
         });
@@ -113,10 +113,15 @@ class WindowsAudioService {
         );
 
         if (this.audioDevice) {
-          logger.info('✅ Using device:', this.audioDevice);
+          logger.info(`✅ Using device: ${this.audioDevice}`);
         } else {
-          logger.warn('⚠️ Stereo Mix not found, using default device');
-          this.audioDevice = audioDevices[0] || '';
+          logger.warn('⚠️ Stereo Mix not found, using first available device');
+          this.audioDevice = audioDevices[0] || null;
+          if (this.audioDevice) {
+            logger.info(`Using device: ${this.audioDevice}`);
+          } else {
+            logger.error('❌ No audio devices found!');
+          }
         }
 
         resolve();
@@ -138,7 +143,7 @@ class WindowsAudioService {
       const timestamp = Date.now();
       this.currentChunkPath = path.join(this.tempDir, `chunk_${timestamp}.wav`);
 
-      logger.info('🎙️ Recording chunk #' + this.chunkCount);
+      logger.info(`🎙️ Recording chunk #${this.chunkCount}`);
 
       // Use detected audio device
       const audioInput = this.audioDevice ? `audio=${this.audioDevice}` : 'audio=';
@@ -154,7 +159,7 @@ class WindowsAudioService {
         this.currentChunkPath
       ];
 
-      logger.info('🎙️ Device:', this.audioDevice || 'default');
+      logger.info(`🎙️ Device: ${this.audioDevice || 'default'}`);
 
       this.recordProcess = spawn('ffmpeg', ffmpegArgs, {
         windowsHide: true,
@@ -211,7 +216,7 @@ class WindowsAudioService {
           const stats = fs.statSync(this.currentChunkPath);
           const fileSizeKB = (stats.size / 1024).toFixed(2);
           
-          logger.info('✅ Chunk saved:', fileSizeKB, 'KB');
+          logger.info(`✅ Chunk saved: ${fileSizeKB} KB`);
 
           // Call callback with audio file
           if (this.callback) {
@@ -224,8 +229,8 @@ class WindowsAudioService {
           }
         } else {
           logger.error('❌ Failed to create chunk');
-          logger.error('Exit code:', code);
-          logger.error('File exists:', fileExists);
+          logger.error(`Exit code: ${code}`);
+          logger.error(`File exists: ${fileExists}`);
           
           if (stderr.includes('Could not find')) {
             logger.error('💡 Enable Stereo Mix in Sound Settings');
@@ -233,6 +238,7 @@ class WindowsAudioService {
           
           if (!dataReceived) {
             logger.error('💡 No data from ffmpeg - check device');
+            logger.error(`stderr: ${stderr.substring(0, 200)}`);
           }
           
           // Retry after delay
@@ -252,7 +258,7 @@ class WindowsAudioService {
 
   stopRecording() {
     logger.info('🛑 Stopping recording');
-    logger.info('Chunks recorded:', this.chunkCount);
+    logger.info(`Chunks recorded: ${this.chunkCount}`);
     
     this.isRecording = false;
 
@@ -261,7 +267,7 @@ class WindowsAudioService {
         this.recordProcess.kill('SIGTERM');
         logger.info('✅ Process stopped');
       } catch (error) {
-        logger.error('❌ Error stopping process:', error.message);
+        logger.error(`❌ Error stopping process: ${error.message}`);
       }
       this.recordProcess = null;
     }
