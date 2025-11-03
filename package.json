@@ -19,7 +19,6 @@
     "build:fedora": "electron-builder --linux rpm --x64",
     "build:dir": "electron-builder --linux dir",
     "electron:build:all": "electron-builder --win --mac --linux",
-    "cleanup": "node scripts/cleanup.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
