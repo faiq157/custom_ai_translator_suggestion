@@ -364,12 +364,15 @@
 
             <div class="form-group" style="margin-top: 20px;">
                 <label>
-                    Microphone Device
-                    <span class="label-description">Select your microphone (default = auto-detect)</span>
+                    Audio Device (Windows)
+                    <span class="label-description">Select audio input device - Use "Stereo Mix" to capture system audio + mic</span>
                 </label>
                 <select id="audioDevice">
-                    <option value="default">Default Device (Auto-detect)</option>
+                    <option value="auto">Auto-detect (Recommended)</option>
                 </select>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    💡 Tip: Enable "Stereo Mix" in Windows Sound Settings to capture meeting participants
+                </small>
             </div>
 
             <div class="grid-2">

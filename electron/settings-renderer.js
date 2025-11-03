@@ -5,6 +5,7 @@ let currentSettings = {};
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', async () => {
     await loadSettings();
+    await loadAudioDevices();
     setupTabs();
     setupEventListeners();
     await loadAppInfo();
@@ -17,6 +18,40 @@ async function loadSettings() {
         populateForm(currentSettings);
     } catch (error) {
         showMessage('Error loading settings: ' + error.message, 'error');
+    }
+}
+
+// Load available audio devices
+async function loadAudioDevices() {
+    try {
+        const response = await fetch('http://localhost:3000/api/devices/audio');
+        const data = await response.json();
+        
+        if (data.success && data.devices) {
+            const select = document.getElementById('audioDevice');
+            select.innerHTML = ''; // Clear existing options
+            
+            data.devices.forEach(device => {
+                const option = document.createElement('option');
+                option.value = device;
+                
+                if (device === 'auto') {
+                    option.textContent = 'Auto-detect (Recommended)';
+                } else {
+                    option.textContent = device;
+                }
+                
+                select.appendChild(option);
+            });
+            
+            // Set current value
+            if (currentSettings.audio?.device) {
+                select.value = currentSettings.audio.device;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading audio devices:', error);
+        // Keep default option if loading fails
     }
 }
 

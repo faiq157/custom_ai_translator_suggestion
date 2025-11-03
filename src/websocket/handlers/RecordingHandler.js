@@ -42,11 +42,12 @@ export class RecordingHandler {
       // Get audio settings
       const audioSettings = this._getAudioSettings();
 
-      // Start audio capture with callback
-      const started = this.services.audioCapture.startRecording(
+      // Start audio capture with callback and user settings
+      const started = await this.services.audioCapture.startRecording(
         async (audioFilePath, fileSize) => {
           await this._handleAudioChunk(audioFilePath, fileSize, socket);
-        }
+        },
+        this.state.userSettings // Pass user settings for device configuration
       );
 
       if (started) {

@@ -8,6 +8,7 @@ import meetingRoutes from './meeting.routes.js';
 import systemRoutes from './system.routes.js';
 import audioRoutes from './audio.routes.js';
 import exportRoutes from './export.routes.js';
+import devicesRoutes from './devices.routes.js';
 
 /**
  * Configure all application routes
@@ -25,6 +26,9 @@ export function configureRoutes(app) {
   
   // Audio device routes
   app.use(audioRoutes);
+  
+  // Device listing routes
+  app.use('/api/devices', devicesRoutes);
   
   // PDF export routes
   app.use(exportRoutes);

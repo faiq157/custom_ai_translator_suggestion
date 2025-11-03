@@ -22,10 +22,6 @@ import { EventHandlers } from './handlers/EventHandlers.js';
  */
 class SocketHandler {
   constructor(io, settingsManager = null) {
-    logger.info('═══════════════════════════════════════════════════════');
-    logger.info('🚀 INITIALIZING SOCKET HANDLER');
-    logger.info('═══════════════════════════════════════════════════════');
-    
     this.io = io;
     this.settingsManager = settingsManager;
     
@@ -43,14 +39,10 @@ class SocketHandler {
     const isWindows = process.platform === 'win32';
     const AudioService = isWindows ? WindowsAudioService : AudioCaptureService;
     
-    logger.info(`🎤 Platform detected: ${process.platform}`);
-    logger.info(`🎤 Platform is Windows: ${isWindows}`);
-    logger.info(`🎤 Using ${isWindows ? 'Windows' : 'Linux'} audio capture service`);
-    logger.info(`🎤 Service class: ${AudioService.name}`);
+    logger.info(`🎤 Platform: ${process.platform}`);
+    logger.info(`🎤 Audio service: ${AudioService.name}`);
     
-    logger.info('🔧 Creating audio capture service instance...');
     const audioCaptureInstance = new AudioService();
-    logger.info(`✅ Audio capture service created: ${audioCaptureInstance.constructor.name}`);
     
     this.services = {
       config,
@@ -61,8 +53,6 @@ class SocketHandler {
       vad: new VADService()
     };
     
-    logger.info('✅ All services initialized');
-    
     // Initialize specialized handlers
     this.audioProcessor = new AudioProcessor(this.services, this.state);
     this.services.audioProcessor = this.audioProcessor; // Make available to other handlers
@@ -70,8 +60,7 @@ class SocketHandler {
     this.recordingHandler = new RecordingHandler(this.services, this.state);
     this.eventHandlers = new EventHandlers(this.services, this.state);
     
-    logger.info('✅ All handlers initialized');
-    logger.info('═══════════════════════════════════════════════════════');
+    logger.info('✅ Services initialized');
     
     // Setup socket event listeners
     this.setupSocketHandlers();

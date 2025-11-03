@@ -10,9 +10,6 @@ import logger from '../config/logger.js';
  */
 class WindowsAudioService {
   constructor() {
-    logger.info('🪟 WINDOWS AUDIO SERVICE CONSTRUCTOR CALLED');
-    logger.info('Platform:', process.platform);
-    
     this.chunkDuration = config.audio.chunkDuration;
     this.isRecording = false;
     this.recordProcess = null;
@@ -20,11 +17,9 @@ class WindowsAudioService {
     this.tempDir = config.paths.tempAudio;
     this.chunkCount = 0;
     this.callback = null;
+    this.audioDevice = null;
     
-    logger.info('Windows Audio Service initialized', {
-      tempDir: this.tempDir,
-      chunkDuration: this.chunkDuration
-    });
+    logger.info('🪟 Windows audio service ready');
     
     this._ensureTempDirectory();
   }
@@ -36,58 +31,121 @@ class WindowsAudioService {
     }
   }
 
-  startRecording(callback) {
+  async startRecording(callback, userSettings = null) {
     if (this.isRecording) {
       logger.warn('⚠️ Recording already in progress');
       return false;
     }
 
-    logger.info('═══════════════════════════════════════════════════════');
     logger.info('🎤 WINDOWS AUDIO CAPTURE STARTING');
-    logger.info('═══════════════════════════════════════════════════════');
-    logger.info('Platform:', process.platform);
-    logger.info('Node version:', process.version);
-    logger.info('Temp directory:', this.tempDir);
     logger.info('Sample rate:', config.audio.sampleRate);
     logger.info('Chunk duration:', this.chunkDuration, 'ms');
-    logger.info('Channels:', config.audio.channels);
-    logger.info('═══════════════════════════════════════════════════════');
+
+    // Get device from settings or auto-detect
+    const configuredDevice = userSettings?.audio?.device;
+    
+    if (configuredDevice && configuredDevice !== 'auto') {
+      // Use configured device
+      this.audioDevice = configuredDevice;
+      logger.info('✅ Using configured device:', this.audioDevice);
+    } else {
+      // Auto-detect devices
+      await this._listAudioDevices();
+    }
 
     this.isRecording = true;
     this.chunkCount = 0;
     this.callback = callback;
     
-    logger.info('✅ Recording state set to true');
-    logger.info('✅ Callback registered:', !!callback);
+    logger.info('✅ Recording started');
     
     this._recordChunk();
     return true;
   }
 
+  async _listAudioDevices() {
+    return new Promise((resolve) => {
+      logger.info('🔍 Detecting audio devices...');
+      
+      const listProcess = spawn('ffmpeg', ['-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
+        windowsHide: true,
+        shell: false
+      });
+
+      let output = '';
+
+      listProcess.stderr.on('data', (data) => {
+        output += data.toString();
+      });
+
+      listProcess.on('exit', () => {
+        // Parse audio devices from output
+        const lines = output.split('\n');
+        const audioDevices = [];
+        
+        let inAudioSection = false;
+        for (const line of lines) {
+          if (line.includes('DirectShow audio devices')) {
+            inAudioSection = true;
+            continue;
+          }
+          if (inAudioSection && line.includes('DirectShow video devices')) {
+            break;
+          }
+          if (inAudioSection && line.includes('"')) {
+            const match = line.match(/"([^"]+)"/);
+            if (match) {
+              audioDevices.push(match[1]);
+            }
+          }
+        }
+
+        logger.info('✅ Available audio devices:', audioDevices.length);
+        audioDevices.forEach((device, index) => {
+          logger.info(`  ${index + 1}. ${device}`);
+        });
+
+        // Find Stereo Mix
+        this.audioDevice = audioDevices.find(d => 
+          d.toLowerCase().includes('stereo mix') || 
+          d.toLowerCase().includes('wave out mix') ||
+          d.toLowerCase().includes('what u hear')
+        );
+
+        if (this.audioDevice) {
+          logger.info('✅ Using device:', this.audioDevice);
+        } else {
+          logger.warn('⚠️ Stereo Mix not found, using default device');
+          this.audioDevice = audioDevices[0] || '';
+        }
+
+        resolve();
+      });
+
+      listProcess.on('error', (error) => {
+        logger.error('❌ Failed to list devices:', error.message);
+        this.audioDevice = 'Stereo Mix'; // Fallback
+        resolve();
+      });
+    });
+  }
+
   _recordChunk() {
-    if (!this.isRecording) {
-      logger.warn('⚠️ _recordChunk called but isRecording is false');
-      return;
-    }
+    if (!this.isRecording) return;
 
     try {
       this.chunkCount++;
       const timestamp = Date.now();
       this.currentChunkPath = path.join(this.tempDir, `chunk_${timestamp}.wav`);
 
-      logger.info('───────────────────────────────────────────────────────');
-      logger.info('🎙️ RECORDING CHUNK #' + this.chunkCount);
-      logger.info('───────────────────────────────────────────────────────');
-      logger.info('Timestamp:', timestamp);
-      logger.info('Output path:', this.currentChunkPath);
-      logger.info('Temp dir exists:', fs.existsSync(this.tempDir));
-      logger.info('Is recording:', this.isRecording);
+      logger.info('🎙️ Recording chunk #' + this.chunkCount);
 
-      // Use ffmpeg to capture from Stereo Mix (system audio + mic)
-      // Stereo Mix must be enabled in Windows Sound Settings
+      // Use detected audio device
+      const audioInput = this.audioDevice ? `audio=${this.audioDevice}` : 'audio=';
+      
       const ffmpegArgs = [
         '-f', 'dshow',
-        '-i', 'audio=Stereo Mix',  // Captures everything playing (including mic if configured)
+        '-i', audioInput,
         '-t', (this.chunkDuration / 1000).toString(),
         '-ar', config.audio.sampleRate.toString(),
         '-ac', config.audio.channels.toString(),
@@ -96,20 +154,12 @@ class WindowsAudioService {
         this.currentChunkPath
       ];
 
-      const commandString = 'ffmpeg ' + ffmpegArgs.join(' ');
-      logger.info('🎙️ ffmpeg command:', commandString);
-      logger.info('Command length:', commandString.length);
-      logger.info('Args count:', ffmpegArgs.length);
+      logger.info('🎙️ Device:', this.audioDevice || 'default');
 
-      logger.info('🚀 Spawning ffmpeg process...');
       this.recordProcess = spawn('ffmpeg', ffmpegArgs, {
         windowsHide: true,
         shell: false
       });
-
-      logger.info('✅ ffmpeg process spawned');
-      logger.info('Process PID:', this.recordProcess.pid);
-      logger.info('Process killed:', this.recordProcess.killed);
 
       let stderr = '';
       let stdout = '';
@@ -126,129 +176,67 @@ class WindowsAudioService {
         const output = data.toString();
         dataReceived = true;
         
-        // Log ALL ffmpeg output for debugging
-        logger.info('📥 ffmpeg stderr:', output.trim());
-        
         // Check for specific errors
         if (output.includes('Could not find') || output.includes('Cannot find')) {
-          logger.error('═══════════════════════════════════════════════════════');
-          logger.error('❌ ERROR: Stereo Mix not found!');
-          logger.error('═══════════════════════════════════════════════════════');
-          logger.error('📖 SOLUTION:');
-          logger.error('1. Right-click speaker icon in taskbar');
-          logger.error('2. Click "Sounds" → "Recording" tab');
-          logger.error('3. Right-click → "Show Disabled Devices"');
-          logger.error('4. Right-click "Stereo Mix" → "Enable"');
-          logger.error('5. Set as default device');
-          logger.error('═══════════════════════════════════════════════════════');
+          logger.error('❌ Audio device not found!');
+          logger.error('💡 Enable Stereo Mix in Sound Settings');
         } else if (output.includes('Cannot open')) {
           logger.error('❌ Cannot open audio device!');
-          logger.error('💡 Another app may be using it (close Zoom/Teams/Discord)');
+          logger.error('💡 Close other apps using microphone');
         } else if (output.includes('size=')) {
-          logger.info('✅ Recording in progress:', output.trim());
+          const sizeMatch = output.match(/size=\s*(\d+)kB/);
+          if (sizeMatch) {
+            logger.info('✅ Recording:', sizeMatch[1] + 'kB');
+          }
         } else if (output.includes('Input #0')) {
-          logger.info('✅ Audio input detected!');
+          logger.info('✅ Audio input detected');
         } else if (output.includes('Stream #0')) {
-          logger.info('✅ Audio stream opened!');
+          logger.info('✅ Audio stream opened');
         }
       });
 
       this.recordProcess.on('error', (error) => {
-        logger.error('═══════════════════════════════════════════════════════');
-        logger.error('❌ PROCESS SPAWN ERROR');
-        logger.error('═══════════════════════════════════════════════════════');
-        logger.error('Error message:', error.message);
-        logger.error('Error code:', error.code);
-        logger.error('Error stack:', error.stack);
-        logger.error('═══════════════════════════════════════════════════════');
+        logger.error('❌ Process error:', error.message);
         
         if (error.code === 'ENOENT') {
           logger.error('❌ ffmpeg not found in PATH!');
-          logger.error('📖 SOLUTION:');
-          logger.error('1. Download: https://www.gyan.dev/ffmpeg/builds/');
-          logger.error('2. Extract to C:\\ffmpeg');
-          logger.error('3. Add C:\\ffmpeg\\bin to Windows PATH');
-          logger.error('4. Restart Command Prompt and test: ffmpeg -version');
+          logger.error('💡 Download from: https://www.gyan.dev/ffmpeg/builds/');
         }
       });
 
       this.recordProcess.on('exit', (code, signal) => {
-        logger.info('═══════════════════════════════════════════════════════');
-        logger.info('🏁 FFMPEG PROCESS EXITED');
-        logger.info('═══════════════════════════════════════════════════════');
-        logger.info('Exit code:', code);
-        logger.info('Signal:', signal);
-        logger.info('Chunk #:', this.chunkCount);
-        logger.info('Data received:', dataReceived);
-        logger.info('File path:', this.currentChunkPath);
-        logger.info('File exists:', fs.existsSync(this.currentChunkPath));
+        const fileExists = fs.existsSync(this.currentChunkPath);
         
-        if (fs.existsSync(this.currentChunkPath)) {
-          const stats = fs.statSync(this.currentChunkPath);
-          logger.info('File size:', stats.size, 'bytes');
-          logger.info('File size KB:', (stats.size / 1024).toFixed(2), 'KB');
-        }
-        
-        logger.info('stderr length:', stderr.length);
-        logger.info('stdout length:', stdout.length);
-        logger.info('═══════════════════════════════════════════════════════');
-        
-        if (code === 0 && fs.existsSync(this.currentChunkPath)) {
+        if (code === 0 && fileExists) {
           const stats = fs.statSync(this.currentChunkPath);
           const fileSizeKB = (stats.size / 1024).toFixed(2);
           
-          logger.info('✅✅✅ SUCCESS! Audio chunk saved ✅✅✅');
-          logger.info('Size:', fileSizeKB, 'KB');
-          logger.info('Path:', this.currentChunkPath);
+          logger.info('✅ Chunk saved:', fileSizeKB, 'KB');
 
           // Call callback with audio file
           if (this.callback) {
-            logger.info('🔔 Calling callback with audio file...');
             this.callback(this.currentChunkPath, stats.size);
-            logger.info('✅ Callback executed');
-          } else {
-            logger.warn('⚠️ No callback registered!');
           }
 
           // Record next chunk
           if (this.isRecording) {
-            logger.info('🔄 Scheduling next chunk in 100ms...');
             setTimeout(() => this._recordChunk(), 100);
-          } else {
-            logger.info('🛑 Recording stopped, not scheduling next chunk');
           }
         } else {
-          logger.error('═══════════════════════════════════════════════════════');
-          logger.error('❌❌❌ FAILED TO CREATE AUDIO CHUNK ❌❌❌');
-          logger.error('═══════════════════════════════════════════════════════');
+          logger.error('❌ Failed to create chunk');
           logger.error('Exit code:', code);
-          logger.error('File path:', this.currentChunkPath);
-          logger.error('File exists:', fs.existsSync(this.currentChunkPath));
-          logger.error('Data received:', dataReceived);
-          logger.error('stderr (first 1000 chars):', stderr.substring(0, 1000));
-          logger.error('stdout (first 1000 chars):', stdout.substring(0, 1000));
-          logger.error('═══════════════════════════════════════════════════════');
+          logger.error('File exists:', fileExists);
           
-          if (stderr.includes('Stereo Mix') || stderr.includes('Could not find')) {
-            logger.error('💡 SOLUTION: Enable Stereo Mix');
-            logger.error('1. Right-click speaker icon in taskbar');
-            logger.error('2. Click "Sounds" → "Recording" tab');
-            logger.error('3. Right-click → "Show Disabled Devices"');
-            logger.error('4. Right-click "Stereo Mix" → "Enable"');
-            logger.error('5. Set as default device');
+          if (stderr.includes('Could not find')) {
+            logger.error('💡 Enable Stereo Mix in Sound Settings');
           }
           
           if (!dataReceived) {
-            logger.error('⚠️ No data received from ffmpeg!');
-            logger.error('💡 Possible causes:');
-            logger.error('1. ffmpeg not in PATH');
-            logger.error('2. Audio device not available');
-            logger.error('3. Permissions issue');
+            logger.error('💡 No data from ffmpeg - check device');
           }
           
           // Retry after delay
           if (this.isRecording) {
-            logger.info('🔄 Retrying in 2 seconds...');
             setTimeout(() => this._recordChunk(), 2000);
           }
         }
@@ -263,35 +251,20 @@ class WindowsAudioService {
   }
 
   stopRecording() {
-    logger.info('═══════════════════════════════════════════════════════');
-    logger.info('🛑 STOPPING WINDOWS AUDIO CAPTURE');
-    logger.info('═══════════════════════════════════════════════════════');
-    logger.info('Was recording:', this.isRecording);
-    logger.info('Chunk count:', this.chunkCount);
-    logger.info('Has process:', !!this.recordProcess);
+    logger.info('🛑 Stopping recording');
+    logger.info('Chunks recorded:', this.chunkCount);
     
     this.isRecording = false;
-    logger.info('✅ Recording state set to false');
 
     if (this.recordProcess) {
-      logger.info('🔪 Killing ffmpeg process...');
-      logger.info('Process PID:', this.recordProcess.pid);
-      logger.info('Process killed:', this.recordProcess.killed);
-      
       try {
         this.recordProcess.kill('SIGTERM');
-        logger.info('✅ Kill signal sent to process');
+        logger.info('✅ Process stopped');
       } catch (error) {
-        logger.error('❌ Error killing process:', error.message);
-        logger.error('Error stack:', error.stack);
+        logger.error('❌ Error stopping process:', error.message);
       }
       this.recordProcess = null;
-      logger.info('✅ Process reference cleared');
-    } else {
-      logger.info('ℹ️ No process to kill');
     }
-    
-    logger.info('═══════════════════════════════════════════════════════');
   }
 
   getStats() {
@@ -300,6 +273,57 @@ class WindowsAudioService {
       chunkCount: this.chunkCount,
       chunkDuration: this.chunkDuration
     };
+  }
+
+  /**
+   * Get list of available audio devices
+   * @returns {Promise<Array>} List of device names
+   */
+  async getAvailableDevices() {
+    return new Promise((resolve) => {
+      logger.info('🔍 Listing audio devices...');
+      
+      const listProcess = spawn('ffmpeg', ['-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
+        windowsHide: true,
+        shell: false
+      });
+
+      let output = '';
+
+      listProcess.stderr.on('data', (data) => {
+        output += data.toString();
+      });
+
+      listProcess.on('exit', () => {
+        const lines = output.split('\n');
+        const audioDevices = [];
+        
+        let inAudioSection = false;
+        for (const line of lines) {
+          if (line.includes('DirectShow audio devices')) {
+            inAudioSection = true;
+            continue;
+          }
+          if (inAudioSection && line.includes('DirectShow video devices')) {
+            break;
+          }
+          if (inAudioSection && line.includes('"')) {
+            const match = line.match(/"([^"]+)"/);
+            if (match) {
+              audioDevices.push(match[1]);
+            }
+          }
+        }
+
+        logger.info('✅ Found', audioDevices.length, 'audio devices');
+        resolve(audioDevices);
+      });
+
+      listProcess.on('error', (error) => {
+        logger.error('❌ Failed to list devices:', error.message);
+        resolve([]);
+      });
+    });
   }
 
   cleanup() {

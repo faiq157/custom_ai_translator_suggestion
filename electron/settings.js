@@ -27,7 +27,7 @@ class SettingsManager {
       audio: {
         sampleRate: 16000,
         channels: 1,
-        device: 'default',
+        device: 'auto', // 'auto' or specific device name
         autoStart: false,
         captureMode: 'microphone', // 'microphone' or 'system'
         vad: {
