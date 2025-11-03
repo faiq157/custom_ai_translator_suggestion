@@ -45,7 +45,7 @@ if (process.env.NODE_ENV === 'production') {
 // Check if OpenAI API key is provided (optional for audio testing)
 const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
 if (!hasOpenAIKey) {
-  console.warn('⚠️  OPENAI_API_KEY not set - Running in AUDIO TEST MODE (no transcription/AI)');
+  console.warn('OPENAI_API_KEY not set - Running in AUDIO TEST MODE (no transcription/AI)');
 }
 
 const config = {

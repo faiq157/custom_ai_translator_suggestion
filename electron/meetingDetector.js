@@ -65,14 +65,14 @@ class MeetingDetector {
 
       // Meeting started (wasn't in meeting before, now is)
       if (inMeeting && !wasInMeeting) {
-        console.log(`✅ Meeting STARTED: ${detectedApp}`);
+        console.log(`Meeting STARTED: ${detectedApp}`);
         if (this.onMeetingStart) {
           this.onMeetingStart(detectedApp);
         }
       }
       // Meeting ended (was in meeting before, now isn't)
       else if (!inMeeting && wasInMeeting) {
-        console.log(`❌ Meeting ENDED: ${previousApp}`);
+        console.log(`Meeting ENDED: ${previousApp}`);
         this.currentMeetingApp = null;
         if (this.onMeetingEnd) {
           this.onMeetingEnd(previousApp);
@@ -80,7 +80,7 @@ class MeetingDetector {
       }
       // Still in meeting (optional logging)
       else if (inMeeting && wasInMeeting) {
-        // console.log(`🔄 Meeting ongoing: ${detectedApp}`);
+        // console.log(`Meeting ongoing: ${detectedApp}`);
       }
     } catch (error) {
       console.error('Error checking for meetings:', error);
@@ -94,28 +94,65 @@ class MeetingDetector {
       
       // Check for Slack in call
       if (stdout.includes('slack.exe')) {
-        // Additional check for active call (window title contains "Call" or "Meeting")
+        // Check window title for Call, Meeting, or Huddle
         try {
           const { stdout: windowInfo } = await execAsync(
-            'powershell "Get-Process slack | Where-Object {$_.MainWindowTitle -match \'Call|Meeting\'} | Select-Object -First 1"'
+            'powershell "Get-Process slack -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -ne \'\' -and ($_.MainWindowTitle -match \'Call|Meeting|Huddle\')} | Select-Object -ExpandProperty MainWindowTitle"'
           );
+          
           if (windowInfo.trim()) {
+            console.log('Slack meeting detected:', windowInfo.trim());
             this.currentMeetingApp = 'Slack';
             return true;
           }
         } catch (e) {
-          // Fallback: assume in meeting if Slack is running
+          // Try alternative method: check ALL Slack windows
+          try {
+            const { stdout: audioCheck } = await execAsync(
+              'powershell "Get-Process slack -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -ne \'\'} | Select-Object -ExpandProperty MainWindowTitle"'
+            );
+            
+            // If Slack has any active window, check if it's likely in a call
+            if (audioCheck.trim()) {
+              const lowerTitle = audioCheck.toLowerCase();
+              
+              if (lowerTitle.includes('call') || 
+                  lowerTitle.includes('meeting') ||
+                  lowerTitle.includes('huddle')) {
+                console.log('Slack meeting detected');
+                this.currentMeetingApp = 'Slack';
+                return true;
+              }
+            }
+          } catch (e2) {
+            // Silent fail
+          }
         }
       }
 
       // Check for Teams in call
       if (stdout.includes('Teams.exe') || stdout.includes('ms-teams.exe')) {
-        this.currentMeetingApp = 'Microsoft Teams';
-        return true;
+        // Check for Teams window with meeting/call
+        try {
+          const { stdout: windowInfo } = await execAsync(
+            'powershell "Get-Process Teams,ms-teams -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowTitle -match \'Meeting|Call\'} | Select-Object -ExpandProperty MainWindowTitle"'
+          );
+          if (windowInfo.trim()) {
+            console.log('Teams meeting detected via window title');
+            this.currentMeetingApp = 'Microsoft Teams';
+            return true;
+          }
+        } catch (e) {
+          // Fallback: assume in meeting if Teams is running
+          console.log('Teams detected (process running)');
+          this.currentMeetingApp = 'Microsoft Teams';
+          return true;
+        }
       }
 
       // Check for Zoom
       if (stdout.includes('Zoom.exe') || stdout.includes('CptHost.exe')) {
+        console.log('Zoom detected');
         this.currentMeetingApp = 'Zoom';
         return true;
       }

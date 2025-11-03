@@ -1,6 +1,6 @@
 import express from 'express';
 import logger from '../config/logger.js';
-import WindowsAudioService from '../services/WindowsAudioService.js';
+import WindowsAudioServiceSoX from '../services/WindowsAudioServiceSoX.js';
 
 const router = express.Router();
 
@@ -22,7 +22,7 @@ router.get('/audio', async (req, res) => {
 
     logger.info('Fetching available audio devices...');
     
-    const audioService = new WindowsAudioService();
+    const audioService = new WindowsAudioServiceSoX();
     const devices = await audioService.getAvailableDevices();
     
     res.json({

@@ -5,7 +5,7 @@
 
 import logger from '../config/logger.js';
 import AudioCaptureService from '../services/AudioCaptureService.js';
-import WindowsAudioService from '../services/WindowsAudioService.js';
+import WindowsAudioServiceSoX from '../services/WindowsAudioServiceSoX.js';
 import TranscriptionService from '../services/TranscriptionService.js';
 import SuggestionService from '../services/SuggestionService.js';
 import MeetingHistoryService from '../services/MeetingHistoryService.js';
@@ -37,10 +37,7 @@ class SocketHandler {
     // Initialize services
     // Use platform-specific audio capture
     const isWindows = process.platform === 'win32';
-    const AudioService = isWindows ? WindowsAudioService : AudioCaptureService;
-    
-    logger.info(`🎤 Platform: ${process.platform}`);
-    logger.info(`🎤 Audio service: ${AudioService.name}`);
+    const AudioService = isWindows ? WindowsAudioServiceSoX : AudioCaptureService;
     
     const audioCaptureInstance = new AudioService();
     
@@ -60,8 +57,6 @@ class SocketHandler {
     this.recordingHandler = new RecordingHandler(this.services, this.state);
     this.eventHandlers = new EventHandlers(this.services, this.state);
     
-    logger.info('✅ Services initialized');
-    
     // Setup socket event listeners
     this.setupSocketHandlers();
   }
@@ -71,7 +66,7 @@ class SocketHandler {
    */
   setupSocketHandlers() {
     this.io.on('connection', (socket) => {
-      logger.info(`${LOG_PREFIX.SUCCESS} Client connected`, { socketId: socket.id });
+      logger.info('Client connected', { socketId: socket.id });
 
       // Send initial stats
       socket.emit(SOCKET_EVENTS.STATS, this._getStats());
@@ -146,7 +141,7 @@ class SocketHandler {
       this.services.audioCapture.cleanup();
     }
     
-    logger.info(`${LOG_PREFIX.SUCCESS} Socket handler cleanup complete`);
+    logger.info('Socket handler cleanup complete');
   }
 }
 

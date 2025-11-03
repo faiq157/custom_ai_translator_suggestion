@@ -21,14 +21,13 @@ class SuggestionService {
     // Smart batching for meaningful context
     this.transcriptionBuffer = [];
     this.lastTranscriptionTime = null;
-    this.minBatchSize = 50; // Minimum characters before sending
+    this.minBatchSize = 30; // Minimum characters before sending (lowered for faster response)
     this.maxBatchWaitTime = 15000; // Max 15 seconds wait
-    this.pauseThreshold = 5000; // 8 seconds pause = end of thought
+    this.pauseThreshold = 5000; // 5 seconds pause = end of thought
   }
 
   addTranscription(transcribedText) {
     if (!transcribedText || transcribedText.trim().length < 5) {
-      logger.debug('Skipping empty or very short transcription');
       return null;
     }
 
@@ -36,12 +35,6 @@ class SuggestionService {
     this.lastTranscriptionTime = Date.now();
     
     const bufferText = this.transcriptionBuffer.join(' ');
-    
-    logger.debug('Transcription buffered', {
-      bufferSize: bufferText.length,
-      chunks: this.transcriptionBuffer.length,
-      text: bufferText.substring(0, 50) + '...'
-    });
     
     // Check if we should send to ChatGPT
     const shouldSend = this._shouldSendBatch(bufferText);
@@ -118,9 +111,6 @@ class SuggestionService {
 
   async generateSuggestions(transcribedText) {
     if (!transcribedText || transcribedText.trim().length < 10) {
-      logger.debug('Skipping suggestion - text too short', { 
-        length: transcribedText?.length 
-      });
       return null;
     }
 
@@ -152,6 +142,7 @@ class SuggestionService {
           }
         };
       }
+      
       // Add to context
       this.conversationContext.push(transcribedText);
 
@@ -162,11 +153,6 @@ class SuggestionService {
 
       // Build context string (last 3 exchanges for speed)
       const recentContext = this.conversationContext.slice(-3).join(' ');
-
-      logger.debug('Generating suggestions', { 
-        contextLength: this.conversationContext.length,
-        textPreview: transcribedText.substring(0, 50)
-      });
 
       const response = await this.client.chat.completions.create({
         model: this.model,
@@ -211,9 +197,7 @@ class SuggestionService {
       logger.info('Suggestions generated', {
         duration: `${duration}ms`,
         tokens: `${inputTokens + outputTokens}`,
-        cost: `$${estimatedCost.toFixed(6)}`,
-        questionsCount: suggestions.questions?.length || 0,
-        resourcesCount: suggestions.resources?.length || 0
+        cost: `$${estimatedCost.toFixed(6)}`
       });
 
       return {
@@ -232,8 +216,7 @@ class SuggestionService {
 
     } catch (error) {
       logger.error('Suggestion generation error', {
-        error: error.message,
-        textPreview: transcribedText.substring(0, 50)
+        error: error.message
       });
       throw error;
     }

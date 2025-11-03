@@ -52,7 +52,7 @@ export class AudioProcessor {
       socket.emit(SOCKET_EVENTS.STATS, this._getStats());
 
     } catch (error) {
-      logger.error(`${LOG_PREFIX.ERROR} Error processing audio chunk`, { 
+      logger.error('Error processing audio chunk', { 
         error: error.message,
         file: audioFilePath 
       });
@@ -83,17 +83,15 @@ export class AudioProcessor {
    * @private
    */
   async _performVAD(audioFilePath) {
-    logger.info(`${LOG_PREFIX.AUDIO} Running VAD analysis...`, { audioFilePath });
     const vadResult = await this.services.vad.analyzeAudio(audioFilePath);
-    logger.info(`${LOG_PREFIX.AUDIO} VAD analysis complete`, { vadResult });
     
     if (!vadResult.hasVoice) {
-      logger.warn(`${LOG_PREFIX.WARNING} VAD: No voice detected, skipping transcription`, {
+      logger.warn('VAD: No voice detected, skipping transcription', {
         confidence: vadResult.confidence,
         energy: vadResult.energy
       });
     } else {
-      logger.info(`${LOG_PREFIX.SUCCESS} VAD: Voice detected, proceeding with transcription`, {
+      logger.info('VAD: Voice detected, proceeding with transcription', {
         confidence: vadResult.confidence,
         energy: vadResult.energy
       });
@@ -107,7 +105,7 @@ export class AudioProcessor {
    * @private
    */
   async _performTranscription(audioFilePath, socket) {
-    logger.info(`${LOG_PREFIX.TRANSCRIPTION} Calling Whisper API...`, { audioFilePath });
+    logger.info('Calling Whisper API...', { audioFilePath });
     socket.emit('processing', { 
       stage: 'transcribing',
       message: 'Transcribing audio...' 
@@ -115,19 +113,14 @@ export class AudioProcessor {
 
     const transcriptionResult = await this.services.transcription.transcribeAudio(audioFilePath);
     
-    logger.info(`${LOG_PREFIX.TRANSCRIPTION} Whisper API response`, { 
-      isSilence: transcriptionResult.isSilence,
+    logger.info('Whisper API response', { 
       hasText: !!transcriptionResult.text,
-      textLength: transcriptionResult.text?.length || 0,
-      text: transcriptionResult.text?.substring(0, 50) || '(empty)'
+      textLength: transcriptionResult.text?.length || 0
     });
 
     // Skip if silence or empty
     if (transcriptionResult.isSilence || !transcriptionResult.text) {
-      logger.warn(`${LOG_PREFIX.WARNING} Skipping - Whisper returned silence or empty`, {
-        isSilence: transcriptionResult.isSilence,
-        hasText: !!transcriptionResult.text
-      });
+      logger.warn('Skipping - Whisper returned silence or empty');
       return null;
     }
 
@@ -161,7 +154,6 @@ export class AudioProcessor {
   async _generateSuggestionsIfReady(text, socket) {
     // Skip if stopping
     if (this.state.isStopping) {
-      logger.debug('Recording stopped, skipping AI suggestion generation');
       return;
     }
     
@@ -174,19 +166,23 @@ export class AudioProcessor {
         message: 'Generating AI suggestions...' 
       });
 
-      const suggestions = await this.services.suggestion.generateSuggestions(batchedText);
+      try {
+        const suggestions = await this.services.suggestion.generateSuggestions(batchedText);
 
-      if (suggestions) {
-        // Save to meeting history
-        this.services.meetingHistory.addSuggestion(suggestions);
-        
-        // Emit suggestions
-        socket.emit(SOCKET_EVENTS.SUGGESTION, suggestions);
-        
-        logger.info(`${LOG_PREFIX.SUCCESS} AI suggestions generated and sent`);
+        if (suggestions) {
+          // Save to meeting history
+          this.services.meetingHistory.addSuggestion(suggestions);
+          
+          // Emit suggestions
+          socket.emit(SOCKET_EVENTS.SUGGESTION, suggestions);
+          
+          logger.info('AI suggestions generated and sent');
+        }
+      } catch (error) {
+        logger.error('Error generating suggestions', {
+          error: error.message
+        });
       }
-    } else {
-      logger.debug('Buffering transcription, waiting for more context...');
     }
   }
 

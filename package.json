@@ -9,6 +9,8 @@
     "dev": "nodemon src/server.js",
     "electron": "electron .",
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "postinstall": "node scripts/download-sox.js",
+    "setup:sox": "node scripts/download-sox.js",
     "electron:build": "electron-builder",
     "electron:build:win": "electron-builder --win --x64",
     "build:win:installer": "electron-builder --win nsis --x64",
@@ -36,22 +38,24 @@
   },
   "license": "MIT",
   "dependencies": {
-    "compression": "*",
-    "cors": "*",
-    "dotenv": "*",
-    "express": "*",
-    "helmet": "*",
-    "openai": "*",
-    "pdfkit": "^0.17.2",
-    "socket.io": "*",
-    "winston": "*"
+    "compression": "^1.7.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.1",
+    "helmet": "^8.0.0",
+    "node-record-lpcm16": "^1.0.1",
+    "openai": "^4.73.0",
+    "pdfkit": "^0.15.0",
+    "socket.io": "^4.8.1",
+    "winston": "^3.17.0"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
-    "electron": "^39.0.0",
-    "electron-builder": "^26.0.12",
-    "nodemon": "^3.1.10",
-    "wait-on": "^9.0.1"
+    "electron": "^33.2.1",
+    "electron-builder": "^25.1.8",
+    "nodemon": "^3.1.7",
+    "unzipper": "^0.12.3",
+    "wait-on": "^8.0.1"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -85,6 +89,13 @@
       {
         "from": "exports",
         "to": "exports",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "binaries",
+        "to": "binaries",
         "filter": [
           "**/*"
         ]

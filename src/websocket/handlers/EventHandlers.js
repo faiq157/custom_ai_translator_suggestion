@@ -20,11 +20,7 @@ export class EventHandlers {
   handleUpdateSettings(settings, socket) {
     this.state.userSettings = settings;
     
-    logger.info(`${LOG_PREFIX.INFO} User settings updated`, {
-      captureMic: settings?.audio?.captureMicrophone,
-      captureSystem: settings?.audio?.captureSystemAudio,
-      autoDetect: settings?.audio?.autoDetectHeadphones
-    });
+    logger.info('User settings updated');
     
     socket.emit(SOCKET_EVENTS.SETTINGS_UPDATED, { 
       success: true,
@@ -52,7 +48,7 @@ export class EventHandlers {
       timestamp: new Date().toISOString()
     });
     
-    logger.info(`${LOG_PREFIX.SUCCESS} Context cleared`, { socketId: socket.id });
+    logger.info('Context cleared', { socketId: socket.id });
   }
 
   /**
@@ -60,14 +56,14 @@ export class EventHandlers {
    * @param {Object} socket - Socket.io socket instance
    */
   handleDisconnect(socket) {
-    logger.info(`${LOG_PREFIX.INFO} Client disconnected`, { socketId: socket.id });
+    logger.info('Client disconnected', { socketId: socket.id });
     
     // Clean up if client disconnects during recording
     if (this.state.isProcessing) {
       this.state.isStopping = true;
       this.state.isProcessing = false;
       this._stopPauseDetection();
-      logger.info(`${LOG_PREFIX.WARNING} Recording cleaned up after disconnect`);
+      logger.info('Recording cleaned up after disconnect');
     }
   }
 
@@ -86,7 +82,7 @@ export class EventHandlers {
       const batchedText = this.services.suggestion.checkPauseTimeout();
       
       if (batchedText) {
-        logger.info(`${LOG_PREFIX.INFO} Pause detected, generating suggestions for buffered content`);
+        logger.info('Pause detected, generating suggestions for buffered content');
         
         socket.emit('processing', { 
           stage: 'generating-suggestions',
@@ -103,7 +99,7 @@ export class EventHandlers {
           
           socket.emit(SOCKET_EVENTS.STATS, this._getStats());
         } catch (error) {
-          logger.error(`${LOG_PREFIX.ERROR} Error generating suggestions on pause`, { 
+          logger.error('Error generating suggestions on pause', { 
             error: error.message 
           });
         }

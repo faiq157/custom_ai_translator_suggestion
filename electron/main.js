@@ -43,16 +43,26 @@ async function startServer() {
   }
 
   return new Promise((resolve, reject) => {
-    // Get the resources path (works for both dev and production)
-    const resourcesPath = process.resourcesPath || path.join(__dirname, '..');
+    // Determine if we're in development or production
+    const isDev = !app.isPackaged;
     
-    // Server is always in app.asar.unpacked/src/server.js
-    const serverPath = path.join(resourcesPath, 'app.asar.unpacked', 'src', 'server.js');
-    const cwdPath = path.join(resourcesPath, 'app.asar.unpacked');
+    let serverPath, cwdPath;
+    
+    if (isDev) {
+      // Development mode: server is in project src folder
+      serverPath = path.join(__dirname, '..', 'src', 'server.js');
+      cwdPath = path.join(__dirname, '..');
+      console.log('Running in DEVELOPMENT mode');
+    } else {
+      // Production mode: server is in app.asar.unpacked
+      const resourcesPath = process.resourcesPath;
+      serverPath = path.join(resourcesPath, 'app.asar.unpacked', 'src', 'server.js');
+      cwdPath = path.join(resourcesPath, 'app.asar.unpacked');
+      console.log('Running in PRODUCTION mode');
+    }
     
     console.log('Starting server from:', serverPath);
     console.log('Working directory:', cwdPath);
-    console.log('Resources path:', resourcesPath);
     
     // Verify paths exist
     if (!fs.existsSync(serverPath)) {

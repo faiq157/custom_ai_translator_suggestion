@@ -76,13 +76,11 @@ export function setupSocketListeners() {
         }
     });
 
-    socket.on('suggestions', (data) => {
+    socket.on('suggestion', (data) => {
         // Only show suggestions if still recording
         if (!state.isRecording) {
-            console.log('Ignoring suggestions - recording stopped');
             return;
         }
-        console.log('Suggestions received:', data);
         addSuggestions(data);
         stateAddSuggestion({
             questions: data.questions || [],

@@ -93,16 +93,28 @@ process.on('SIGINT', gracefulShutdown);
 // ==================== SERVER STARTUP ====================
 
 /**
- * Start the HTTP server
+ * Start the HTTP server with automatic port fallback
  */
-httpServer.listen(config.port, () => {
-  logger.info('🚀 Meeting AI Assistant Server Started', {
-    port: config.port,
-    environment: config.nodeEnv,
-    nodeVersion: process.version,
-    url: `http://localhost:${config.port}`
+function startServer(port) {
+  httpServer.listen(port, () => {
+    logger.info('Server started', {
+      port: port,
+      environment: config.nodeEnv,
+      nodeVersion: process.version,
+      url: `http://localhost:${port}`
+    });
+  }).on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      const nextPort = port + 1;
+      logger.warn(`Port ${port} is busy, trying port ${nextPort}...`);
+      startServer(nextPort);
+    } else {
+      logger.error('Server error:', err);
+      process.exit(1);
+    }
   });
-  logger.info(`📱 Open http://localhost:${config.port} in your browser`);
-});
+}
+
+startServer(config.port);
 
 export default app;

@@ -23,7 +23,7 @@ export class RecordingHandler {
         return;
       }
 
-      logger.info(`${LOG_PREFIX.AUDIO} Starting recording session`, { socketId: socket.id });
+      logger.info('Starting recording session', { socketId: socket.id });
       
       // Update state
       this.state.isProcessing = true;
@@ -55,13 +55,13 @@ export class RecordingHandler {
           message: 'Recording started',
           timestamp: new Date().toISOString()
         });
-        logger.info(`${LOG_PREFIX.SUCCESS} Recording started successfully`);
+        logger.info('Recording started successfully');
       } else {
         throw new Error('Failed to start audio capture');
       }
 
     } catch (error) {
-      logger.error(`${LOG_PREFIX.ERROR} Error starting recording`, { error: error.message });
+      logger.error('Error starting recording', { error: error.message });
       this.state.isProcessing = false;
       socket.emit(SOCKET_EVENTS.ERROR, { 
         message: 'Failed to start system recording', 
@@ -76,7 +76,7 @@ export class RecordingHandler {
    */
   async handleStopRecording(socket) {
     try {
-      logger.info(`${LOG_PREFIX.INFO} Stopping recording session`, { socketId: socket.id });
+      logger.info('Stopping recording session', { socketId: socket.id });
       
       // Stop audio capture
       this.services.audioCapture.stopRecording();
@@ -110,13 +110,13 @@ export class RecordingHandler {
         meeting: meetingData
       });
 
-      logger.info(`${LOG_PREFIX.SUCCESS} Meeting summary generated`, { 
+      logger.info('Meeting summary generated', { 
         meetingId: meetingData?.meetingId,
         pdfPath: meetingData?.pdfPath 
       });
 
     } catch (error) {
-      logger.error(`${LOG_PREFIX.ERROR} Error stopping recording`, { error: error.message });
+      logger.error('Error stopping recording', { error: error.message });
       socket.emit(SOCKET_EVENTS.ERROR, { 
         message: 'Failed to stop system recording', 
         error: error.message 
@@ -129,27 +129,18 @@ export class RecordingHandler {
    * @private
    */
   async _handleAudioChunk(audioFilePath, fileSize, socket) {
-    logger.info(`${LOG_PREFIX.PROCESSING} Callback triggered`, { 
-      audioFilePath, 
-      fileSize,
-      isProcessing: this.state.isProcessing,
-      isStopping: this.state.isStopping
-    });
     
     if (!this.state.isProcessing || this.state.isStopping) {
-      logger.warn(`${LOG_PREFIX.WARNING} Skipping chunk - not processing or stopping`);
+      logger.warn('Skipping chunk - not processing or stopping');
       return;
     }
     
     try {
-      logger.info(`${LOG_PREFIX.PROCESSING} Starting to process audio chunk`, { audioFilePath });
       await this.services.audioProcessor.processAudioChunk(audioFilePath, fileSize, socket);
-      logger.info(`${LOG_PREFIX.SUCCESS} Chunk processing complete`);
     } catch (error) {
-      logger.error(`${LOG_PREFIX.ERROR} Error processing audio chunk`, { 
+      logger.error('Error processing audio chunk', { 
         error: error.message,
-        stack: error.stack,
-        file: audioFilePath 
+        audioFilePath 
       });
     }
   }
