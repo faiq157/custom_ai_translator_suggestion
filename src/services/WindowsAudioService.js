@@ -112,33 +112,19 @@ class WindowsAudioService {
           logger.warn('⚠️ No output from ffmpeg!');
         }
 
-        // Parse audio devices from output - try multiple patterns
+        // Parse audio devices from output
         const lines = output.split('\n');
         const audioDevices = [];
         
-        let inAudioSection = false;
         for (const line of lines) {
-          // Look for DirectShow audio devices section
-          if (line.includes('DirectShow audio devices') || 
-              line.includes('dshow @ ') && line.toLowerCase().includes('audio')) {
-            inAudioSection = true;
-            logger.info('✅ Found DirectShow audio devices section');
-            continue;
-          }
-          
-          // End of audio section
-          if (inAudioSection && (line.includes('DirectShow video devices') || 
-                                  line.includes('dshow @ ') && line.toLowerCase().includes('video'))) {
-            logger.info('End of audio devices section');
-            break;
-          }
-          
-          // Extract device names - look for quoted strings in audio section
-          if (inAudioSection && line.includes('"')) {
-            const match = line.match(/"([^"]+)"/);
+          // Look for lines with (audio) marker - these are audio devices
+          if (line.includes('(audio)') && line.includes('"')) {
+            // Extract the friendly name from: "Device Name" (audio)
+            const match = line.match(/"([^"]+)"\s*\(audio\)/);
             if (match && match[1] !== 'dummy') {
-              audioDevices.push(match[1]);
-              logger.info(`  📱 Found device: ${match[1]}`);
+              const deviceName = match[1];
+              audioDevices.push(deviceName);
+              logger.info(`  📱 Found audio device: ${deviceName}`);
             }
           }
         }
@@ -161,19 +147,23 @@ class WindowsAudioService {
           logger.info(`  ${index + 1}. ${device}`);
         });
 
-        // Find Stereo Mix
-        this.audioDevice = audioDevices.find(d => 
-          d.toLowerCase().includes('stereo mix') || 
-          d.toLowerCase().includes('wave out mix') ||
-          d.toLowerCase().includes('what u hear')
-        );
+        // Find Stereo Mix or similar loopback device
+        this.audioDevice = audioDevices.find(d => {
+          const lower = d.toLowerCase();
+          return lower.includes('stereo mix') || 
+                 lower.includes('wave out mix') ||
+                 lower.includes('what u hear') ||
+                 lower.includes('what you hear');
+        });
 
         if (this.audioDevice) {
-          logger.info(`✅ Using device: ${this.audioDevice}`);
+          logger.info(`✅ Using loopback device: ${this.audioDevice}`);
         } else {
-          logger.warn('⚠️ Stereo Mix not found, using first available device');
+          // Use first available device (usually microphone)
           this.audioDevice = audioDevices[0];
-          logger.info(`Using device: ${this.audioDevice}`);
+          logger.warn(`⚠️ No loopback device found (Stereo Mix)`);
+          logger.info(`Using microphone: ${this.audioDevice}`);
+          logger.warn(`💡 To capture system audio, enable "Stereo Mix" in Sound Settings`);
         }
 
         resolve();
@@ -356,7 +346,11 @@ class WindowsAudioService {
     return new Promise((resolve) => {
       logger.info('🔍 Listing audio devices...');
       
-      const listProcess = spawn('ffmpeg', ['-list_devices', 'true', '-f', 'dshow', '-i', 'dummy'], {
+      const listProcess = spawn('ffmpeg', [
+        '-f', 'dshow',
+        '-list_devices', 'true',
+        '-i', 'dummy'
+      ], {
         windowsHide: true,
         shell: false
       });
@@ -371,29 +365,22 @@ class WindowsAudioService {
         const lines = output.split('\n');
         const audioDevices = [];
         
-        let inAudioSection = false;
+        // Extract friendly device names with (audio) marker
         for (const line of lines) {
-          if (line.includes('DirectShow audio devices')) {
-            inAudioSection = true;
-            continue;
-          }
-          if (inAudioSection && line.includes('DirectShow video devices')) {
-            break;
-          }
-          if (inAudioSection && line.includes('"')) {
-            const match = line.match(/"([^"]+)"/);
-            if (match) {
+          if (line.includes('(audio)') && line.includes('"')) {
+            const match = line.match(/"([^"]+)"\s*\(audio\)/);
+            if (match && match[1] !== 'dummy') {
               audioDevices.push(match[1]);
             }
           }
         }
 
-        logger.info('✅ Found', audioDevices.length, 'audio devices');
+        logger.info(`✅ Found ${audioDevices.length} audio devices`);
         resolve(audioDevices);
       });
 
       listProcess.on('error', (error) => {
-        logger.error('❌ Failed to list devices:', error.message);
+        logger.error(`❌ Failed to list devices: ${error.message}`);
         resolve([]);
       });
     });
