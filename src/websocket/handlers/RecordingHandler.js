@@ -44,7 +44,17 @@ export class RecordingHandler {
 
       // Start audio capture with callback and user settings
       const started = await this.services.audioCapture.startRecording(
-        async (audioFilePath, fileSize) => {
+        async (audioFilePath, fileSize, error) => {
+          // Handle errors
+          if (error || !audioFilePath) {
+            logger.error('Audio capture error:', error?.message || 'No audio file path');
+            socket.emit(SOCKET_EVENTS.ERROR, { 
+              message: error?.message || 'Audio capture failed',
+              type: 'audio_capture_error'
+            });
+            this.state.isProcessing = false;
+            return;
+          }
           await this._handleAudioChunk(audioFilePath, fileSize, socket);
         },
         this.state.userSettings // Pass user settings for device configuration

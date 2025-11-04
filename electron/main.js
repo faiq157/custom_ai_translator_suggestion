@@ -95,11 +95,21 @@ async function startServer() {
     // Get settings to pass to server
     const settings = settingsManager.getSettings();
     
+    // Get installation directory for SoX binaries
+    // In production, resourcesPath is like: C:\Users\...\Meeting AI Assistant\resources
+    // Installation directory is the parent: C:\Users\...\Meeting AI Assistant
+    const installationDir = isDev 
+      ? path.join(__dirname, '..')
+      : path.dirname(process.resourcesPath);
+    
     serverProcess = spawn('node', [serverPath], {
       cwd: cwdPath,
       env: { 
         ...process.env, 
         NODE_ENV: 'production',
+        // Pass installation directory for SoX binaries
+        APP_INSTALL_DIR: installationDir,
+        APP_RESOURCES_PATH: process.resourcesPath || '',
         // Pass settings as environment variables
         OPENAI_API_KEY: settings.openai.apiKey,
         OPENAI_MODEL: settings.openai.model,
