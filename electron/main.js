@@ -10,6 +10,26 @@ import MeetingDetector from './meetingDetector.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Suppress harmless OpenGL/VSync warnings (these are harmless Chromium messages)
+// These warnings occur when Chromium can't determine VSync parameters, which is common on Linux
+// They don't affect functionality and can be safely ignored
+
+// Filter console.error to suppress these specific warnings
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  const message = args.join(' ');
+  // Suppress OpenGL/VSync related errors that are harmless
+  if (message.includes('GetVSyncParametersIfAvailable') || 
+      message.includes('gl_surface_presentation_helper')) {
+    return; // Suppress these specific warnings
+  }
+  originalConsoleError.apply(console, args);
+};
+
+// Note: These errors come from Chromium's internal stderr and may still appear in terminal
+// They occur when Chromium can't determine VSync parameters (common on Linux)
+// These warnings are harmless and don't affect application functionality
+
 let mainWindow;
 let settingsWindow;
 let floatingWindow;
@@ -141,6 +161,8 @@ function createSettingsWindow() {
     return;
   }
 
+  const iconPath = getIconPath();
+  
   settingsWindow = new BrowserWindow({
     width: 900,
     height: 700,
@@ -153,12 +175,22 @@ function createSettingsWindow() {
       enableRemoteModule: false,
       webSecurity: true
     },
+    icon: iconPath,
     title: 'Settings - Meeting AI Assistant',
     backgroundColor: '#1a1a2e',
     parent: mainWindow,
     modal: false,
     show: false
   });
+  
+  // Set window icon explicitly
+  if (fs.existsSync(iconPath)) {
+    try {
+      settingsWindow.setIcon(iconPath);
+    } catch (error) {
+      console.warn('Failed to set settings window icon:', error);
+    }
+  }
 
   settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
 
@@ -179,6 +211,8 @@ function createFloatingWindow() {
 
     console.log('Creating floating window at position:', { x: width - 520, y: 50, width: 500, height: height - 100 });
 
+    const iconPath = getIconPath();
+    
     floatingWindow = new BrowserWindow({
       width: 500,
       height: height - 100,
@@ -194,9 +228,19 @@ function createFloatingWindow() {
         nodeIntegration: false,
         contextIsolation: true
       },
+      icon: iconPath,
       backgroundColor: '#1a1a2e',
       show: false
     });
+    
+    // Set window icon explicitly
+    if (fs.existsSync(iconPath)) {
+      try {
+        floatingWindow.setIcon(iconPath);
+      } catch (error) {
+        console.warn('Failed to set floating window icon:', error);
+      }
+    }
 
     const floatingURL = `http://localhost:${SERVER_PORT}/floating`;
     console.log('Loading floating window URL:', floatingURL);
@@ -223,8 +267,19 @@ function createFloatingWindow() {
   }
 }
 
+// Get icon path helper
+function getIconPath() {
+  if (app.isPackaged) {
+    return path.join(process.resourcesPath, 'app.asar.unpacked', 'public', 'icon.png');
+  } else {
+    return path.join(__dirname, '..', 'public', 'icon.png');
+  }
+}
+
 // Create the main application window
 function createWindow() {
+  const iconPath = getIconPath();
+  
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
@@ -237,11 +292,23 @@ function createWindow() {
       enableRemoteModule: false,
       webSecurity: true
     },
-    icon: path.join(__dirname, '..', 'public', 'icon.png'),
+    icon: iconPath,
     title: 'Meeting AI Assistant',
     backgroundColor: '#1a1a2e',
     show: false
   });
+  
+  // Set window icon explicitly (works better on Linux)
+  if (fs.existsSync(iconPath)) {
+    try {
+      mainWindow.setIcon(iconPath);
+      console.log('Window icon set:', iconPath);
+    } catch (error) {
+      console.warn('Failed to set window icon:', error);
+    }
+  } else {
+    console.warn('Icon file not found at:', iconPath);
+  }
 
   // Hide the menu bar
   Menu.setApplicationMenu(null);
@@ -390,28 +457,31 @@ ipcMain.on('suggestion', (event, data) => {
 // Create system tray
 function createTray() {
   try {
-    // Try multiple icon paths for different environments
-    let iconPath;
-    if (app.isPackaged) {
-      iconPath = path.join(process.resourcesPath, 'app.asar.unpacked', 'public', 'icon.png');
-    } else {
-      iconPath = path.join(__dirname, '..', 'public', 'icon.png');
-    }
+    const iconPath = getIconPath();
     
     console.log('Tray icon path:', iconPath);
     console.log('Icon exists:', fs.existsSync(iconPath));
     
     let trayIcon;
     if (fs.existsSync(iconPath)) {
-      trayIcon = nativeImage.createFromPath(iconPath);
-      if (trayIcon.isEmpty()) {
-        console.warn('Tray icon is empty, using default');
+      try {
+        trayIcon = nativeImage.createFromPath(iconPath);
+        if (trayIcon.isEmpty()) {
+          console.warn('Tray icon is empty, trying to create from template');
+          // Try to create a simple icon if loading fails
+          trayIcon = nativeImage.createEmpty();
+        } else {
+          // Resize for tray - Linux typically needs 22x22 or 24x24
+          const size = process.platform === 'linux' ? 22 : 16;
+          trayIcon = trayIcon.resize({ width: size, height: size });
+          console.log('Tray icon loaded and resized to', size, 'x', size);
+        }
+      } catch (error) {
+        console.error('Failed to load tray icon:', error);
         trayIcon = nativeImage.createEmpty();
-      } else {
-        trayIcon = trayIcon.resize({ width: 16, height: 16 });
       }
     } else {
-      console.warn('Tray icon not found, using empty icon');
+      console.warn('Tray icon not found at:', iconPath);
       trayIcon = nativeImage.createEmpty();
     }
     
@@ -564,6 +634,17 @@ function handleMeetingEnd(meetingApp) {
 app.whenReady().then(async () => {
   try {
     console.log('Starting Meeting AI Assistant...');
+    
+    // Set app icon (works better on Linux) - only if method exists
+    const iconPath = getIconPath();
+    if (fs.existsSync(iconPath) && typeof app.setIcon === 'function') {
+      try {
+        app.setIcon(iconPath);
+        console.log('App icon set:', iconPath);
+      } catch (error) {
+        console.warn('Failed to set app icon:', error);
+      }
+    }
     
     // Set app to launch at startup
     if (!app.isPackaged) {

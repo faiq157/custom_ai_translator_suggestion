@@ -11,13 +11,14 @@
     "electron:dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "postinstall": "node scripts/download-sox.js",
     "setup:sox": "node scripts/download-sox.js",
+    "prebuild": "npm install",
     "electron:build": "electron-builder",
     "electron:build:win": "electron-builder --win --x64",
     "build:win:installer": "electron-builder --win nsis --x64",
     "build:win:portable": "electron-builder --win portable --x64",
     "electron:build:mac": "electron-builder --mac",
     "electron:build:linux": "electron-builder --linux --x64",
-    "build:appimage": "electron-builder --linux AppImage",
+    "build:appimage": "npm run prebuild && electron-builder --linux AppImage",
     "build:rpm": "electron-builder --linux rpm",
     "build:fedora": "electron-builder --linux rpm --x64",
     "build:dir": "electron-builder --linux dir",
@@ -38,16 +39,24 @@
   },
   "license": "MIT",
   "dependencies": {
+    "call-bind-apply-helpers": "^1.0.2",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "dotenv": "^16.4.7",
+    "dunder-proto": "^1.0.1",
+    "es-errors": "^1.3.0",
     "express": "^4.21.1",
+    "function-bind": "^1.1.2",
+    "get-intrinsic": "^1.3.0",
+    "get-proto": "^1.0.1",
     "helmet": "^8.0.0",
-    "node-record-lpcm16": "^1.0.1",
     "openai": "^4.73.0",
     "pdfkit": "^0.15.0",
     "socket.io": "^4.8.1",
     "winston": "^3.17.0"
+  },
+  "optionalDependencies": {
+    "node-record-lpcm16": "^1.0.1"
   },
   "devDependencies": {
     "concurrently": "^9.2.1",
@@ -71,13 +80,24 @@
       "src/**/*",
       "public/**/*",
       "node_modules/**/*",
+      "!node_modules/node-record-lpcm16/**/*",
       "package.json"
     ],
     "asarUnpack": [
       "node_modules/**/*",
+      "node_modules/call-bind-apply-helpers/**/*",
+      "node_modules/function-bind/**/*",
+      "node_modules/es-errors/**/*",
+      "node_modules/dunder-proto/**/*",
+      "node_modules/get-proto/**/*",
+      "node_modules/get-intrinsic/**/*",
       "src/**/*",
       "public/**/*"
     ],
+    "asar": true,
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "afterPack": "build/afterPack.cjs",
     "extraResources": [
       {
         "from": "meetings",
@@ -113,7 +133,16 @@
       ],
       "icon": "public/icon.ico",
       "requestedExecutionLevel": "asInvoker",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "extraFiles": [
+        {
+          "from": "binaries/sox",
+          "to": "binaries/sox",
+          "filter": [
+            "**/*"
+          ]
+        }
+      ]
     },
     "mac": {
       "target": [
