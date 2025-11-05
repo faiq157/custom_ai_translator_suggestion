@@ -117,7 +117,12 @@ async function startServer() {
         PORT: settings.server.port.toString(),
         AUDIO_SAMPLE_RATE: settings.audio.sampleRate.toString(),
         AUDIO_CHANNELS: settings.audio.channels.toString(),
-        AUDIO_DEVICE: settings.audio.device
+        AUDIO_DEVICE: settings.audio.device,
+        // VAD settings
+        VAD_ENABLED: settings.audio?.vad?.enabled !== false ? 'true' : 'false',
+        VAD_ENERGY_THRESHOLD: (settings.audio?.vad?.energyThreshold || 0.02).toString(),
+        VAD_MIN_SPEECH_DURATION: (settings.audio?.vad?.minSpeechDuration || 300).toString(),
+        VAD_SILENCE_THRESHOLD: (settings.audio?.vad?.silenceThreshold || 0.003).toString()
       },
       stdio: 'pipe',
       shell: false

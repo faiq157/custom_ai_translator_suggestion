@@ -251,9 +251,160 @@
             gap: 20px;
         }
 
+        .info-icon {
+            display: inline-block;
+            margin-left: 8px;
+            color: #60a5fa;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            vertical-align: middle;
+        }
+
+        .info-icon:hover {
+            color: #93c5fd;
+            transform: scale(1.1);
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+            animation: fadeIn 0.3s;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            animation: slideUp 0.3s;
+            position: relative;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .modal-header h2 {
+            color: #fff;
+            font-size: 22px;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: #a0a0a0;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .modal-body {
+            color: #e0e0e0;
+            line-height: 1.6;
+        }
+
+        .modal-body h3 {
+            color: #fff;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .modal-body h3:first-child {
+            margin-top: 0;
+        }
+
+        .modal-body ul {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0;
+        }
+
+        .modal-body li {
+            padding: 10px 0;
+            padding-left: 25px;
+            position: relative;
+            color: #a0a0a0;
+        }
+
+        .modal-body li:before {
+            content: '\f00c';
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            color: #4ade80;
+        }
+
+        .modal-body p {
+            margin: 10px 0;
+            color: #a0a0a0;
+        }
+
+        .modal-body strong {
+            color: #fff;
+        }
+
+        .modal-body code {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+            color: #60a5fa;
+        }
+
         @media (max-width: 600px) {
             .grid-2 {
                 grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                max-width: 90%;
+                padding: 20px;
             }
         }
     </style>
@@ -410,6 +561,7 @@
             <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
                 <h3 style="color: #fff; margin-bottom: 15px; font-size: 16px;">
                     <i class="fas fa-filter"></i> Voice Activity Detection (VAD)
+                    <i class="fas fa-circle-info info-icon" onclick="showVADGuide()" title="Click for VAD guide"></i>
                 </h3>
                 <p style="color: #a0a0a0; font-size: 13px; margin-bottom: 15px;">
                     VAD filters out silence and background noise before calling Whisper API, saving costs and improving performance.
@@ -419,9 +571,9 @@
                     <div class="form-group">
                         <label>
                             Energy Threshold
-                            <span class="label-description">Voice detection sensitivity (0.01-0.1)</span>
+                            <span class="label-description">Voice detection sensitivity (0.001-0.1)</span>
                         </label>
-                        <input type="number" id="vadEnergyThreshold" min="0.01" max="0.1" step="0.01" value="0.02">
+                        <input type="number" id="vadEnergyThreshold" min="0.001" max="0.1" step="0.001" value="0.02">
                     </div>
 
                     <div class="form-group">
@@ -431,6 +583,14 @@
                         </label>
                         <input type="number" id="vadMinDuration" min="100" max="1000" step="50" value="300">
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        Silence Threshold
+                        <span class="label-description">Threshold for silence detection (0.001-0.01)</span>
+                    </label>
+                    <input type="number" id="vadSilenceThreshold" min="0.001" max="0.01" step="0.001" value="0.003">
                 </div>
 
                 <div class="form-group">
@@ -505,6 +665,116 @@
         </div>
     </div>
 
+    <!-- VAD Guide Modal -->
+    <div id="vadGuideModal" class="modal-overlay" onclick="closeVADGuide(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>
+                    <i class="fas fa-filter"></i> Voice Activity Detection (VAD) Guide
+                </h2>
+                <button class="modal-close" onclick="closeVADGuide()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <h3>
+                    <i class="fas fa-lightbulb"></i> What is VAD?
+                </h3>
+                <p>
+                    Voice Activity Detection (VAD) is a technology that automatically identifies when speech is present in audio recordings. 
+                    It filters out silence, background noise, and non-speech sounds before sending audio to the transcription API.
+                </p>
+
+                <h3>
+                    <i class="fas fa-dollar-sign"></i> Benefits
+                </h3>
+                <ul>
+                    <li><strong>Save API costs:</strong> Only transcribe audio with actual speech, reducing unnecessary API calls</li>
+                    <li><strong>Improve performance:</strong> Faster processing by skipping empty or silent audio chunks</li>
+                    <li><strong>Better accuracy:</strong> Focus on actual speech content, reducing transcription errors</li>
+                    <li><strong>Reduce bandwidth:</strong> Less data sent to the API when silence is detected</li>
+                </ul>
+
+                <h3>
+                    <i class="fas fa-sliders"></i> Configuration Settings
+                </h3>
+                <p><strong>Enable VAD:</strong> Toggle to turn VAD on or off. When disabled, all audio chunks will be transcribed regardless of content.</p>
+
+                <p><strong>Energy Threshold:</strong> Controls how sensitive the system is to detecting voice.</p>
+                <ul>
+                    <li><strong>Lower values (0.001-0.01):</strong> More sensitive - detects quieter speech but may include more background noise</li>
+                    <li><strong>Higher values (0.05-0.1):</strong> Less sensitive - only detects louder speech, filters out more noise</li>
+                    <li><strong>Recommended:</strong> Start with 0.02 and adjust based on your environment</li>
+                </ul>
+
+                <p><strong>Min Speech Duration:</strong> Minimum length of detected speech in milliseconds before processing.</p>
+                <ul>
+                    <li><strong>Lower values (100-200ms):</strong> Detects very short speech fragments</li>
+                    <li><strong>Higher values (500-1000ms):</strong> Only processes longer speech segments</li>
+                    <li><strong>Recommended:</strong> 300ms is a good balance for most use cases</li>
+                </ul>
+
+                <p><strong>Silence Threshold:</strong> Threshold below which audio is considered silence.</p>
+                <ul>
+                    <li><strong>Lower values (0.001-0.002):</strong> Very strict silence detection</li>
+                    <li><strong>Higher values (0.005-0.01):</strong> More lenient, allows quieter sounds</li>
+                    <li><strong>Recommended:</strong> 0.003 works well for most environments</li>
+                </ul>
+
+                <h3>
+                    <i class="fas fa-wrench"></i> How to Use
+                </h3>
+                <ol style="list-style: decimal; padding-left: 25px; color: #a0a0a0; margin: 15px 0;">
+                    <li style="padding: 10px 0; color: #a0a0a0;"><strong style="color: #fff;">Enable VAD:</strong> Check the "Enable VAD" checkbox (recommended)</li>
+                    <li style="padding: 10px 0; color: #a0a0a0;"><strong style="color: #fff;">Test your environment:</strong> Start with default values and record some audio</li>
+                    <li style="padding: 10px 0; color: #a0a0a0;"><strong style="color: #fff;">Adjust if needed:</strong> If VAD is too sensitive (detects background noise), increase Energy Threshold</li>
+                    <li style="padding: 10px 0; color: #a0a0a0;"><strong style="color: #fff;">If missing speech:</strong> If VAD misses some speech, decrease Energy Threshold</li>
+                    <li style="padding: 10px 0; color: #a0a0a0;"><strong style="color: #fff;">Save and restart:</strong> After changing settings, save and restart the app for changes to take effect</li>
+                </ol>
+
+                <h3>
+                    <i class="fas fa-exclamation-triangle"></i> Important Notes
+                </h3>
+                <ul>
+                    <li>Settings changes require an app restart to take effect</li>
+                    <li>VAD works best in quiet environments with clear speech</li>
+                    <li>Very noisy environments may require higher thresholds</li>
+                    <li>If VAD is disabled, all audio will be transcribed (higher API costs)</li>
+                    <li>Test with different values to find what works best for your setup</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
     <script src="settings-renderer.js"></script>
+    <script>
+        // VAD Guide Modal Functions
+        function showVADGuide() {
+            const modal = document.getElementById('vadGuideModal');
+            if (modal) {
+                modal.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeVADGuide(event) {
+            const modal = document.getElementById('vadGuideModal');
+            if (modal) {
+                modal.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeVADGuide();
+            }
+        });
+
+        // Make functions available globally
+        window.showVADGuide = showVADGuide;
+        window.closeVADGuide = closeVADGuide;
+    </script>
 </body>
 </html>

@@ -30,10 +30,14 @@ export class AudioProcessor {
       // Emit audio chunk info
       this._emitAudioChunkInfo(audioFilePath, fileSize, socket);
 
-      // Step 1: Voice Activity Detection
-      const vadResult = await this._performVAD(audioFilePath);
-      if (!vadResult.hasVoice) {
-        return; // Skip if no voice detected
+      // Step 1: Voice Activity Detection (if enabled)
+      if (this.state.vadEnabled !== false) {
+        const vadResult = await this._performVAD(audioFilePath);
+        if (!vadResult.hasVoice) {
+          return; // Skip if no voice detected
+        }
+      } else {
+        logger.debug('VAD disabled, skipping voice detection');
       }
 
       // Step 2: Transcription

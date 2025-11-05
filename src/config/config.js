@@ -68,7 +68,14 @@ const config = {
     sampleRate: parseInt(process.env.AUDIO_SAMPLE_RATE || '16000', 10),
     channels: 1,
     format: 'wav',
-    device: process.env.AUDIO_DEVICE || 'default'
+    device: process.env.AUDIO_DEVICE || 'default',
+    // VAD settings from app settings
+    vad: {
+      enabled: process.env.VAD_ENABLED === 'true' || process.env.VAD_ENABLED === undefined, // Default to enabled if not set
+      energyThreshold: parseFloat(process.env.VAD_ENERGY_THRESHOLD || '0.02'),
+      minSpeechDuration: parseInt(process.env.VAD_MIN_SPEECH_DURATION || '300', 10),
+      silenceThreshold: parseFloat(process.env.VAD_SILENCE_THRESHOLD || '0.003')
+    }
   },
   
   // Paths

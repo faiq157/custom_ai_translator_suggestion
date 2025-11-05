@@ -41,14 +41,25 @@ class SocketHandler {
     
     const audioCaptureInstance = new AudioService();
     
+    // Initialize VAD service with settings from config
+    const vadConfig = config.audio.vad || {};
+    const vadService = new VADService({
+      energyThreshold: vadConfig.energyThreshold,
+      minSpeechDuration: vadConfig.minSpeechDuration,
+      silenceThreshold: vadConfig.silenceThreshold
+    });
+    
     this.services = {
       config,
       audioCapture: audioCaptureInstance,
       transcription: new TranscriptionService(),
       suggestion: new SuggestionService(),
       meetingHistory: new MeetingHistoryService(),
-      vad: new VADService()
+      vad: vadService
     };
+    
+    // Store VAD enabled state for runtime checks
+    this.state.vadEnabled = vadConfig.enabled !== false;
     
     // Initialize specialized handlers
     this.audioProcessor = new AudioProcessor(this.services, this.state);

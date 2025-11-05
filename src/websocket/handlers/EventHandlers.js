@@ -20,6 +20,30 @@ export class EventHandlers {
   handleUpdateSettings(settings, socket) {
     this.state.userSettings = settings;
     
+    // Update VAD configuration if provided
+    if (settings.audio?.vad) {
+      const vadConfig = settings.audio.vad;
+      
+      // Update VAD enabled state
+      this.state.vadEnabled = vadConfig.enabled !== false;
+      
+      // Update VAD service configuration
+      if (this.services.vad) {
+        this.services.vad.updateConfig({
+          energyThreshold: vadConfig.energyThreshold,
+          minSpeechDuration: vadConfig.minSpeechDuration,
+          silenceThreshold: vadConfig.silenceThreshold
+        });
+        
+        logger.info('VAD configuration updated from settings', {
+          enabled: this.state.vadEnabled,
+          energyThreshold: vadConfig.energyThreshold,
+          minSpeechDuration: vadConfig.minSpeechDuration,
+          silenceThreshold: vadConfig.silenceThreshold
+        });
+      }
+    }
+    
     logger.info('User settings updated');
     
     socket.emit(SOCKET_EVENTS.SETTINGS_UPDATED, { 

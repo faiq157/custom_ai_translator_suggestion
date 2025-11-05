@@ -33,7 +33,8 @@ class SettingsManager {
         vad: {
           enabled: true,
           energyThreshold: 0.02,
-          minSpeechDuration: 300
+          minSpeechDuration: 300,
+          silenceThreshold: 0.003
         }
       },
       ui: {

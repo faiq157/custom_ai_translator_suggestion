@@ -75,6 +75,7 @@ function populateForm(settings) {
     document.getElementById('vadEnabled').checked = settings.audio?.vad?.enabled !== false;
     document.getElementById('vadEnergyThreshold').value = settings.audio?.vad?.energyThreshold || 0.02;
     document.getElementById('vadMinDuration').value = settings.audio?.vad?.minSpeechDuration || 300;
+    document.getElementById('vadSilenceThreshold').value = settings.audio?.vad?.silenceThreshold || 0.003;
 
     // Server settings
     document.getElementById('serverPort').value = settings.server?.port || 3000;
@@ -101,7 +102,8 @@ async function saveSettings() {
                 vad: {
                     enabled: document.getElementById('vadEnabled').checked,
                     energyThreshold: parseFloat(document.getElementById('vadEnergyThreshold').value),
-                    minSpeechDuration: parseInt(document.getElementById('vadMinDuration').value)
+                    minSpeechDuration: parseInt(document.getElementById('vadMinDuration').value),
+                    silenceThreshold: parseFloat(document.getElementById('vadSilenceThreshold').value)
                 }
             },
             server: {
