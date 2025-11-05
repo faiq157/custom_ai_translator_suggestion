@@ -131,7 +131,7 @@ class MeetingHistoryService {
       // Transcription Section
       doc.fontSize(18)
          .fillColor('#6366f1')
-         .text('📝 Transcription', { underline: true });
+         .text('Transcription', { underline: true });
       
       doc.moveDown();
 
@@ -160,7 +160,7 @@ class MeetingHistoryService {
       // AI Suggestions Section
       doc.fontSize(18)
          .fillColor('#6366f1')
-         .text('💡 AI Suggestions', { underline: true });
+         .text('AI Suggestions', { underline: true });
       
       doc.moveDown();
 
@@ -170,7 +170,7 @@ class MeetingHistoryService {
           if (suggestion.questions && suggestion.questions.length > 0) {
             doc.fontSize(14)
                .fillColor('#000000')
-               .text('❓ Questions to Consider:');
+               .text('Questions to Consider:');
             doc.moveDown(0.3);
             
             suggestion.questions.forEach(q => {
@@ -185,7 +185,7 @@ class MeetingHistoryService {
           if (suggestion.resources && suggestion.resources.length > 0) {
             doc.fontSize(14)
                .fillColor('#000000')
-               .text('🔗 Relevant Resources:');
+               .text('Relevant Resources:');
             doc.moveDown(0.3);
             
             suggestion.resources.forEach(r => {
@@ -200,7 +200,7 @@ class MeetingHistoryService {
           if (suggestion.actionItems && suggestion.actionItems.length > 0) {
             doc.fontSize(14)
                .fillColor('#000000')
-               .text('✅ Action Items:');
+               .text('Action Items:');
             doc.moveDown(0.3);
             
             suggestion.actionItems.forEach(a => {

@@ -123,10 +123,10 @@ class WindowsAudioServiceSoX {
         logger.info(`Checking: ${normalizedPath}`);
         
         if (fs.existsSync(normalizedPath)) {
-          logger.info('✓ Found SoX at:', normalizedPath);
+          logger.info('Found SoX at:', normalizedPath);
           return normalizedPath;
         } else {
-          logger.warn('✗ SoX not found at:', normalizedPath);
+          logger.warn('SoX not found at:', normalizedPath);
           // Try to see what's in the parent directory
           const parentDir = path.dirname(normalizedPath);
           if (fs.existsSync(parentDir)) {
@@ -145,7 +145,7 @@ class WindowsAudioServiceSoX {
       }
     }
     
-    logger.error('✗ SoX not found in any production location.');
+    logger.error('SoX not found in any production location.');
     logger.error('Tried paths:', uniquePaths);
     logger.error('Please ensure SoX binaries are included in the build.');
     logger.error('Expected location based on your path:');

@@ -144,7 +144,7 @@ class PDFExportService {
               
               doc.fontSize(14)
                  .fillColor('#2563eb')
-                 .text('❓ Questions to Consider', { underline: true });
+                 .text('Questions to Consider', { underline: true });
               
               doc.moveDown(0.3);
               
@@ -164,7 +164,7 @@ class PDFExportService {
               
               doc.fontSize(14)
                  .fillColor('#2563eb')
-                 .text('🔗 Relevant Resources', { underline: true });
+                 .text('Relevant Resources', { underline: true });
               
               doc.moveDown(0.3);
               
@@ -191,7 +191,7 @@ class PDFExportService {
               
               doc.fontSize(14)
                  .fillColor('#2563eb')
-                 .text('✅ Action Items', { underline: true });
+                 .text('Action Items', { underline: true });
               
               doc.moveDown(0.3);
               

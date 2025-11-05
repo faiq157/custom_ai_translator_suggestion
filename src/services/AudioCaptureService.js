@@ -37,7 +37,7 @@ class AudioCaptureService {
 
     this.isRecording = true;
     this.chunkCount = 0;
-    logger.info('🎤 Audio capture started', {
+    logger.info('Audio capture started', {
       sampleRate: config.audio.sampleRate,
       chunkDuration: this.chunkDuration
     });
@@ -70,36 +70,36 @@ class AudioCaptureService {
         this.currentChunkPath
       ];
 
-      logger.info('🎙️ Starting arecord', { args, duration: this.chunkDuration });
+      logger.info('Starting arecord', { args, duration: this.chunkDuration });
 
       this.micInstance = spawn('arecord', args);
       
-      logger.info('✅ arecord spawned', { pid: this.micInstance.pid });
+      logger.info('arecord spawned', { pid: this.micInstance.pid });
       
       // Kill arecord after chunk duration and process chunk
       const killTimer = setTimeout(() => {
-        logger.info('⏰ Timer fired! Attempting to kill arecord', { 
+        logger.info('Timer fired! Attempting to kill arecord', { 
           duration: this.chunkDuration,
           pid: this.micInstance?.pid,
           killed: this.micInstance?.killed 
         });
         
         if (this.micInstance && !this.micInstance.killed) {
-          logger.info('🔪 Killing arecord with SIGINT (Ctrl+C)', { pid: this.micInstance.pid });
+          logger.info('Killing arecord with SIGINT (Ctrl+C)', { pid: this.micInstance.pid });
           this.micInstance.kill('SIGINT');
-          logger.info('✅ Kill signal sent');
+          logger.info('Kill signal sent');
           
           // Exit event will handle processing - no need for manual timeout
           // (Keeping this comment for reference - manual processing disabled since EXIT event works)
         } else {
-          logger.warn('⚠️ Cannot kill - instance null or already killed');
+          logger.warn('Cannot kill - instance null or already killed');
         }
       }, this.chunkDuration);
       
-      logger.info('⏲️ Kill timer set', { duration: this.chunkDuration });
+      logger.info('Kill timer set', { duration: this.chunkDuration });
 
       this.micInstance.on('error', (err) => {
-        logger.error('❌ arecord error event', { error: err.message });
+        logger.error('arecord error event', { error: err.message });
       });
 
       this.micInstance.stderr.on('data', (data) => {
@@ -113,21 +113,21 @@ class AudioCaptureService {
       });
 
       this.micInstance.on('exit', (code, signal) => {
-        logger.info('🚶 arecord EXIT event', { code, signal });
+        logger.info('arecord EXIT event', { code, signal });
         
         // Process chunk on exit since close event may not fire
         if (this.isRecording && fs.existsSync(this.currentChunkPath)) {
-          logger.info('✅ Processing audio chunk from EXIT event', { code, path: this.currentChunkPath });
+          logger.info('Processing audio chunk from EXIT event', { code, path: this.currentChunkPath });
           this._processChunk(callback);
           
           // Record next chunk
-          logger.info('🔄 Recording next chunk from EXIT...');
+          logger.info('Recording next chunk from EXIT...');
           this._recordChunks(callback);
         }
       });
 
       this.micInstance.on('close', (code, signal) => {
-        logger.info('🚪 arecord process CLOSED!', { 
+        logger.info('arecord process CLOSED!', { 
           code, 
           signal,
           isRecording: this.isRecording,
@@ -138,22 +138,22 @@ class AudioCaptureService {
         // Process chunk if recording is still active and file exists
         // Note: arecord may exit with code 1 when terminated after duration, but file is valid
         if (this.isRecording && fs.existsSync(this.currentChunkPath)) {
-          logger.info('✅ Processing audio chunk', { code, path: this.currentChunkPath });
+          logger.info('Processing audio chunk', { code, path: this.currentChunkPath });
           this._processChunk(callback);
           
           // Record next chunk
-          logger.info('🔄 Recording next chunk...');
+          logger.info('Recording next chunk...');
           this._recordChunks(callback);
         } else if (code !== 0 && !this.isRecording) {
-          logger.info('⏹️ arecord terminated (recording stopped)', { code });
+          logger.info('arecord terminated (recording stopped)', { code });
         } else if (code !== 0) {
-          logger.warn('⚠️ arecord exited with non-zero code', { 
+          logger.warn('arecord exited with non-zero code', { 
             code,
             chunkPath: this.currentChunkPath,
             fileExists: fs.existsSync(this.currentChunkPath)
           });
         } else {
-          logger.warn('❓ Unexpected close state', {
+          logger.warn('Unexpected close state', {
             code,
             isRecording: this.isRecording,
             fileExists: fs.existsSync(this.currentChunkPath)

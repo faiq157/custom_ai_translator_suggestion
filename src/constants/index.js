@@ -104,14 +104,14 @@ export const SUCCESS_MESSAGES = {
 
 // Log Prefixes (for better log readability)
 export const LOG_PREFIX = {
-  AUDIO: '🎤',
-  TRANSCRIPTION: '📝',
-  SUGGESTION: '💡',
-  MEETING: '📅',
-  ERROR: '❌',
-  SUCCESS: '✅',
-  WARNING: '⚠️',
-  INFO: 'ℹ️',
-  TIMER: '⏰',
-  PROCESSING: '🚀'
+  AUDIO: '[AUDIO]',
+  TRANSCRIPTION: '[TRANSCRIPTION]',
+  SUGGESTION: '[SUGGESTION]',
+  MEETING: '[MEETING]',
+  ERROR: '[ERROR]',
+  SUCCESS: '[SUCCESS]',
+  WARNING: '[WARNING]',
+  INFO: '[INFO]',
+  TIMER: '[TIMER]',
+  PROCESSING: '[PROCESSING]'
 };

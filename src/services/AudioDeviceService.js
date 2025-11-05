@@ -79,17 +79,17 @@ class AudioDeviceService {
   _formatDeviceName(deviceId) {
     // Convert device ID to human-readable name
     if (deviceId.includes('Speaker') && deviceId.includes('monitor')) {
-      return '🔊 System Audio (Captures ALL meeting participants)';
+      return 'System Audio (Captures ALL meeting participants)';
     } else if (deviceId.includes('HDMI') && deviceId.includes('monitor')) {
-      return '🖥️ HDMI Audio Monitor';
+      return 'HDMI Audio Monitor';
     } else if (deviceId.includes('Mic')) {
-      return '🎤 Microphone (Your voice only)';
+      return 'Microphone (Your voice only)';
     } else if (deviceId.includes('input')) {
-      return '🎤 Audio Input';
+      return 'Audio Input';
     } else if (deviceId.includes('monitor')) {
-      return '🔊 Audio Monitor';
+      return 'Audio Monitor';
     } else if (deviceId === 'default') {
-      return '🎤 Default Microphone';
+      return 'Default Microphone';
     }
     
     return deviceId;
