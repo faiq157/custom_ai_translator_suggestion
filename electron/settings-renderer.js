@@ -59,7 +59,7 @@ async function loadAudioDevices() {
 function populateForm(settings) {
     // OpenAI settings
     document.getElementById('apiKey').value = settings.openai?.apiKey || '';
-    document.getElementById('gptModel').value = settings.openai?.model || 'gpt-4';
+    document.getElementById('gptModel').value = settings.openai?.model || 'gpt-3.5-turbo';
     document.getElementById('whisperModel').value = settings.openai?.whisperModel || 'whisper-1';
     document.getElementById('temperature').value = settings.openai?.temperature || 0.7;
     document.getElementById('maxTokens').value = settings.openai?.maxTokens || 1000;

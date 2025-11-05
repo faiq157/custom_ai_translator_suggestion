@@ -112,7 +112,7 @@ async function startServer() {
         APP_RESOURCES_PATH: process.resourcesPath || '',
         // Pass settings as environment variables
         OPENAI_API_KEY: settings.openai.apiKey,
-        OPENAI_MODEL: settings.openai.model,
+        GPT_MODEL: settings.openai.model || 'gpt-3.5-turbo',
         WHISPER_MODEL: settings.openai.whisperModel,
         PORT: settings.server.port.toString(),
         AUDIO_SAMPLE_RATE: settings.audio.sampleRate.toString(),
