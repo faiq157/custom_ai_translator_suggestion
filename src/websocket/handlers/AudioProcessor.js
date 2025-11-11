@@ -6,35 +6,95 @@
 import path from 'path';
 import logger from '../../config/logger.js';
 import { SOCKET_EVENTS, LOG_PREFIX } from '../../constants/index.js';
+import { ProcessingQueue } from '../../utils/ProcessingQueue.js';
 
 export class AudioProcessor {
   constructor(services, state) {
     this.services = services;
     this.state = state;
+    
+    // Create processing queue to prevent chunk dropping
+    // Use configurable limits from config
+    const maxConcurrent = services.config.processing?.maxConcurrent || 2;
+    const maxQueueSize = services.config.processing?.maxQueueSize || 10;
+    this.processingQueue = new ProcessingQueue(maxConcurrent, maxQueueSize);
+    
+    logger.info('AudioProcessor initialized', {
+      maxConcurrent,
+      maxQueueSize,
+      quickVAD: services.config.processing?.enableQuickVAD !== false
+    });
   }
 
   /**
-   * Process a single audio chunk
+   * Process a single audio chunk (queued to prevent dropping)
    * @param {string} audioFilePath - Path to audio file
    * @param {number} fileSize - Size of audio file
    * @param {Object} socket - Socket.io socket instance
    */
   async processAudioChunk(audioFilePath, fileSize, socket) {
+    // Skip if stopping
+    if (this.state.isStopping) {
+      logger.debug('Recording stopped, skipping audio chunk processing');
+      return;
+    }
+
+    // Emit audio chunk info immediately
+    this._emitAudioChunkInfo(audioFilePath, fileSize, socket);
+
+    // Add to processing queue to prevent dropping chunks
+    const chunkId = path.basename(audioFilePath, '.wav');
+    
     try {
-      // Skip if stopping
+      await this.processingQueue.enqueue(
+        async () => {
+          return await this._processChunkInternal(audioFilePath, fileSize, socket);
+        },
+        { chunkId, fileSize, path: audioFilePath }
+      );
+    } catch (error) {
+      logger.error('Error queuing audio chunk', { 
+        error: error.message,
+        file: audioFilePath,
+        queueStats: this.processingQueue.getStats()
+      });
+      
+      socket.emit(SOCKET_EVENTS.ERROR, { 
+        message: 'Error processing audio chunk', 
+        error: error.message 
+      });
+    }
+  }
+
+  /**
+   * Internal processing logic (called from queue)
+   * @private
+   */
+  async _processChunkInternal(audioFilePath, fileSize, socket) {
+    try {
+      // Skip if stopping (check again after queue wait)
       if (this.state.isStopping) {
-        logger.debug('Recording stopped, skipping audio chunk processing');
+        logger.debug('Recording stopped during queue wait, skipping chunk');
         return;
       }
 
-      // Emit audio chunk info
-      this._emitAudioChunkInfo(audioFilePath, fileSize, socket);
-
       // Step 1: Voice Activity Detection (if enabled)
       if (this.state.vadEnabled !== false) {
-        const vadResult = await this._performVAD(audioFilePath);
+        // Use quick check if enabled (faster for obvious cases)
+        const useQuickCheck = this.services.config.processing?.enableQuickVAD !== false;
+        const vadResult = await this._performVAD(audioFilePath, useQuickCheck);
         if (!vadResult.hasVoice) {
-          return; // Skip if no voice detected
+          logger.debug('VAD: No voice detected, skipping transcription', {
+            reason: vadResult.reason,
+            energy: vadResult.energy?.toFixed(4)
+          });
+          
+          // Delete silent chunk immediately to save space
+          if (this.services.config.audio.cleanup.deleteAfterTranscription) {
+            this.services.transcription.deleteAudioFile(audioFilePath);
+          }
+          
+          return null; // Skip if no voice detected
         }
       } else {
         logger.debug('VAD disabled, skipping voice detection');
@@ -43,7 +103,12 @@ export class AudioProcessor {
       // Step 2: Transcription
       const transcriptionResult = await this._performTranscription(audioFilePath, socket);
       if (!transcriptionResult || this.state.isStopping) {
-        return; // Skip if no transcription or stopping
+        // Delete failed/silent chunks if cleanup enabled
+        if (this.services.config.audio.cleanup.deleteAfterTranscription && 
+            !this.services.config.audio.cleanup.keepForPlayback) {
+          this.services.transcription.deleteAudioFile(audioFilePath);
+        }
+        return null; // Skip if no transcription or stopping
       }
 
       // Save and emit transcription
@@ -55,16 +120,20 @@ export class AudioProcessor {
       // Emit updated stats
       socket.emit(SOCKET_EVENTS.STATS, this._getStats());
 
+      return transcriptionResult;
     } catch (error) {
-      logger.error('Error processing audio chunk', { 
+      logger.error('Error processing audio chunk internally', { 
         error: error.message,
-        file: audioFilePath 
+        file: audioFilePath,
+        stack: error.stack
       });
       
       socket.emit(SOCKET_EVENTS.ERROR, { 
         message: 'Error processing audio', 
         error: error.message 
       });
+      
+      throw error; // Re-throw to let queue handle retry if needed
     }
   }
 
@@ -86,18 +155,20 @@ export class AudioProcessor {
    * Perform Voice Activity Detection
    * @private
    */
-  async _performVAD(audioFilePath) {
-    const vadResult = await this.services.vad.analyzeAudio(audioFilePath);
+  async _performVAD(audioFilePath, useQuickCheck = true) {
+    const vadResult = await this.services.vad.analyzeAudio(audioFilePath, useQuickCheck);
     
     if (!vadResult.hasVoice) {
-      logger.warn('VAD: No voice detected, skipping transcription', {
+      logger.debug('VAD: No voice detected, skipping transcription', {
         confidence: vadResult.confidence,
-        energy: vadResult.energy
+        energy: vadResult.energy,
+        reason: vadResult.reason
       });
     } else {
-      logger.info('VAD: Voice detected, proceeding with transcription', {
-        confidence: vadResult.confidence,
-        energy: vadResult.energy
+      logger.debug('VAD: Voice detected, proceeding with transcription', {
+        confidence: vadResult.confidence?.toFixed(3),
+        energy: vadResult.energy?.toFixed(4),
+        reason: vadResult.reason
       });
     }
     
@@ -202,6 +273,7 @@ export class AudioProcessor {
       chunkCount: 0,
       chunkDuration: 0
     };
+    const queueStats = this.processingQueue.getStats();
 
     return {
       audio: audioStats,
@@ -211,7 +283,23 @@ export class AudioProcessor {
       isProcessing: this.state.isProcessing,
       sessionDuration: this.state.sessionStartTime 
         ? Date.now() - this.state.sessionStartTime 
-        : 0
+        : 0,
+      queue: {
+        queueSize: queueStats.queueSize,
+        processing: queueStats.processing,
+        totalQueued: queueStats.totalQueued,
+        totalProcessed: queueStats.totalProcessed,
+        totalDropped: queueStats.totalDropped,
+        totalErrors: queueStats.totalErrors
+      }
     };
+  }
+
+  /**
+   * Cleanup processing queue
+   */
+  cleanup() {
+    this.processingQueue.clear();
+    logger.info('Audio processor cleanup complete');
   }
 }

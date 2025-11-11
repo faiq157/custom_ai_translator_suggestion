@@ -97,6 +97,13 @@ export class RecordingHandler {
       
       // Clear any buffered transcriptions
       this.services.suggestion.clearBuffer();
+      
+      // Wait for processing queue to finish
+      if (this.services.audioProcessor && this.services.audioProcessor.processingQueue) {
+        logger.info('Waiting for processing queue to finish...');
+        await this.services.audioProcessor.processingQueue.waitForCompletion();
+        logger.info('Processing queue finished');
+      }
 
       const sessionDuration = this.state.sessionStartTime 
         ? Date.now() - this.state.sessionStartTime 

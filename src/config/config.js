@@ -69,13 +69,27 @@ const config = {
     channels: 1,
     format: 'wav',
     device: process.env.AUDIO_DEVICE || 'default',
-    // VAD settings from app settings
+    // Cleanup settings
+    cleanup: {
+      deleteAfterTranscription: process.env.DELETE_AUDIO_AFTER_TRANSCRIPTION !== 'false', // Default: true (delete after processing)
+      keepForPlayback: process.env.KEEP_AUDIO_FOR_PLAYBACK === 'true', // Default: false (don't keep)
+      maxAge: parseInt(process.env.AUDIO_MAX_AGE || '3600000', 10) // 1 hour default
+    },
+    // VAD settings from app settings (optimized to reduce false negatives)
     vad: {
       enabled: process.env.VAD_ENABLED === 'true' || process.env.VAD_ENABLED === undefined, // Default to enabled if not set
-      energyThreshold: parseFloat(process.env.VAD_ENERGY_THRESHOLD || '0.02'),
-      minSpeechDuration: parseInt(process.env.VAD_MIN_SPEECH_DURATION || '300', 10),
-      silenceThreshold: parseFloat(process.env.VAD_SILENCE_THRESHOLD || '0.003')
+      energyThreshold: parseFloat(process.env.VAD_ENERGY_THRESHOLD || '0.003'), // Lowered to catch quiet speech
+      minSpeechDuration: parseInt(process.env.VAD_MIN_SPEECH_DURATION || '200', 10), // Reduced to catch shorter utterances
+      silenceThreshold: parseFloat(process.env.VAD_SILENCE_THRESHOLD || '0.001'), // Lowered to be less aggressive
+      quickCheckEnabled: process.env.VAD_QUICK_CHECK !== 'false' // Enable quick energy check before full VAD
     }
+  },
+  
+  // Processing optimization
+  processing: {
+    maxConcurrent: parseInt(process.env.MAX_CONCURRENT_TRANSCRIPTIONS || '2', 10),
+    maxQueueSize: parseInt(process.env.MAX_QUEUE_SIZE || '10', 10),
+    enableQuickVAD: process.env.ENABLE_QUICK_VAD !== 'false' // Quick energy check before full VAD
   },
   
   // Paths

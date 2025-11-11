@@ -3,10 +3,12 @@ import logger from '../config/logger.js';
 
 class VADService {
   constructor(options = {}) {
-    // VAD configuration - LOWERED thresholds to accept more audio
-    this.energyThreshold = options.energyThreshold || 0.005; // Lowered from 0.02 to 0.005
-    this.minSpeechDuration = options.minSpeechDuration || 300; // Minimum speech duration in ms
-    this.silenceThreshold = options.silenceThreshold || 0.003; // Lowered from 0.01 to 0.003
+    // VAD configuration - OPTIMIZED thresholds to reduce false negatives
+    // Lower thresholds = more sensitive (catches more speech, but may include noise)
+    // Higher thresholds = less sensitive (fewer false positives, but may miss quiet speech)
+    this.energyThreshold = options.energyThreshold || 0.003; // Further lowered from 0.005 to catch quiet speech
+    this.minSpeechDuration = options.minSpeechDuration || 200; // Reduced from 300ms to catch shorter utterances
+    this.silenceThreshold = options.silenceThreshold || 0.001; // Lowered from 0.003 to be less aggressive
     this.frameSize = options.frameSize || 512; // Frame size for analysis
     
     logger.info('VAD Service initialized', {
@@ -17,14 +19,92 @@ class VADService {
   }
 
   /**
+   * Quick energy check - fast pre-filter before full VAD
+   * @param {string} audioPath - Path to WAV audio file
+   * @returns {Promise<Object>} - Quick check result
+   */
+  async quickCheck(audioPath) {
+    try {
+      if (!fs.existsSync(audioPath)) {
+        return { hasVoice: false, confidence: 0, reason: 'file_not_found' };
+      }
+
+      const ext = audioPath.toLowerCase().split('.').pop();
+      if (ext !== 'wav') {
+        return { hasVoice: true, confidence: 0.5, reason: 'non_wav_format' };
+      }
+
+      // Quick check: read first 1KB of audio data
+      const audioBuffer = fs.readFileSync(audioPath, { start: 0, end: 1024 });
+      
+      // Find data chunk quickly
+      let dataOffset = -1;
+      let offset = 12;
+      while (offset < Math.min(audioBuffer.length - 8, 200)) {
+        const chunkId = audioBuffer.toString('ascii', offset, offset + 4);
+        const chunkSize = audioBuffer.readUInt32LE(offset + 4);
+        
+        if (chunkId === 'data') {
+          dataOffset = offset + 8;
+          break;
+        }
+        offset += 8 + chunkSize;
+      }
+
+      if (dataOffset === -1) {
+        return { hasVoice: true, confidence: 0.5, reason: 'quick_check_fallback' };
+      }
+
+      // Quick energy calculation on first samples
+      const sampleCount = Math.min(256, (audioBuffer.length - dataOffset) / 2);
+      let sumSquares = 0;
+      for (let i = dataOffset; i < dataOffset + (sampleCount * 2) && i < audioBuffer.length - 1; i += 2) {
+        const sample = audioBuffer.readInt16LE(i) / 32768.0;
+        sumSquares += sample * sample;
+      }
+      const quickEnergy = Math.sqrt(sumSquares / sampleCount);
+
+      // If energy is clearly above threshold, skip full VAD
+      if (quickEnergy > this.energyThreshold * 2) {
+        return { hasVoice: true, confidence: 0.8, energy: quickEnergy, reason: 'quick_check_high_energy' };
+      }
+
+      // If energy is clearly below threshold, skip full VAD
+      if (quickEnergy < this.silenceThreshold) {
+        return { hasVoice: false, confidence: 0.2, energy: quickEnergy, reason: 'quick_check_low_energy' };
+      }
+
+      // Uncertain - need full VAD
+      return { needsFullVAD: true, energy: quickEnergy };
+    } catch (error) {
+      logger.debug('Quick VAD check error, falling back to full VAD', { error: error.message });
+      return { needsFullVAD: true };
+    }
+  }
+
+  /**
    * Analyze audio file to detect voice activity
    * @param {string} audioPath - Path to WAV audio file
+   * @param {boolean} useQuickCheck - Use quick check first (default: true)
    * @returns {Promise<Object>} - VAD analysis result
    */
-  async analyzeAudio(audioPath) {
+  async analyzeAudio(audioPath, useQuickCheck = true) {
     try {
       if (!fs.existsSync(audioPath)) {
         throw new Error(`Audio file not found: ${audioPath}`);
+      }
+
+      // Quick check first (if enabled) - can skip full VAD for obvious cases
+      if (useQuickCheck) {
+        const quickResult = await this.quickCheck(audioPath);
+        if (!quickResult.needsFullVAD) {
+          logger.debug('VAD: Quick check result', {
+            hasVoice: quickResult.hasVoice,
+            reason: quickResult.reason,
+            energy: quickResult.energy?.toFixed(4)
+          });
+          return quickResult;
+        }
       }
 
       // Check file extension - only process WAV files
@@ -181,8 +261,9 @@ class VADService {
       reason = 'too_short';
     }
 
-    // Detect silence (very low energy)
-    if (energy < this.silenceThreshold) {
+    // Detect silence (very low energy) - but be less aggressive
+    // Only mark as silence if energy is extremely low AND duration is very short
+    if (energy < this.silenceThreshold && duration < 1000) {
       hasVoice = false;
       confidence = 0;
       reason = 'silence_detected';
